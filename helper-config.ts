@@ -1,5 +1,5 @@
 export const MIN_DELAY = 3600; // one hour
-export const QUORUM_PERCENTAGE = 4;
+export const QUORUM_PERCENTAGE = 2;
 export const PROPOSAL_THRESHOLD = 0;
 export const VOTING_PERIOD = 5;
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";

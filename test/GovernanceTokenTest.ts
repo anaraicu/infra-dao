@@ -21,6 +21,7 @@ describe("GovernanceTokenUnitTests", function () {
       "GovernanceToken",
       owner
     );
+
     governanceToken = (await upgrades.deployProxy(governanceTokenFactory, [], {
       initializer: "initialize",
     })) as GovernanceToken;

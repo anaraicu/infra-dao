@@ -19,8 +19,8 @@ export async function propose(
   functionToCall: string,
   proposalDescription: string
 ) {
-  const governor = await ethers.getContract("OrganizationGovernance");
-  const box = await ethers.getContract("Box");
+  const governor = await ethers.getContractAt("OrganizationGovernance", "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318");
+  const box = await ethers.getContractAt("Box", "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE");
 
   const encodeFunctionCall = box.interface.encodeFunctionData(
     functionToCall,

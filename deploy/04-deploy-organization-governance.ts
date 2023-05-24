@@ -9,6 +9,7 @@ import { ethers, upgrades } from "hardhat";
 import { address } from "hardhat/internal/core/config/config-validation";
 import { ContractFactory } from "ethers";
 import { OrganizationGovernance } from "../typechain-types";
+import {time} from "@nomicfoundation/hardhat-network-helpers";
 
 const deployGovernorContract: DeployFunction = async function (
   hre: HardhatRuntimeEnvironment
@@ -16,9 +17,9 @@ const deployGovernorContract: DeployFunction = async function (
   const { getNamedAccounts, deployments } = hre;
   const { deploy, log, get } = deployments;
   const { deployer, account } = await getNamedAccounts();
-  const governanceToken = await get("GovernanceToken");
-  const membershipNFT = await get("MembershipNFT");
-  const timeLock = await get("TimeLock");
+  const governanceTokenAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+  const membershipNFTAddress = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
+  const timeLockAddress = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853";
 
   log(`Deploying DAO Governor`);
   // const governorContract = await deploy("OrganizationGovernance", {
@@ -38,9 +39,9 @@ const deployGovernorContract: DeployFunction = async function (
   const organizationGovernance = (await upgrades.deployProxy(
     organizationGovernanceFactory,
     [
-      governanceToken.address,
-      membershipNFT.address,
-      timeLock.address,
+      governanceTokenAddress,
+      membershipNFTAddress,
+      timeLockAddress,
       VOTING_PERIOD,
       QUORUM_PERCENTAGE,
       PROPOSAL_THRESHOLD,

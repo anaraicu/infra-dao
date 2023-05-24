@@ -1,10 +1,13 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 import { ethers, upgrades } from "hardhat";
-import { min } from "hardhat/internal/util/bigint";
 import { ContractFactory } from "ethers";
 import { GovernanceToken } from "../typechain-types";
+import * as fs from "fs";
 
+const governanceTokenAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+const membershipNFTAddress = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
+const timeLockAddress = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853";
 // Deploy functions that will run with hardhat
 const deployGovernanceToken: DeployFunction = async function (
   hre: HardhatRuntimeEnvironment
@@ -22,43 +25,35 @@ const deployGovernanceToken: DeployFunction = async function (
     governanceTokenFactory,
     [],
     { initializer: "initialize" }
-  )) as GovernanceToken;
+  ));
   await governanceToken.deployed();
+  log("Governance Token deployed to:", governanceToken.address);
+  fs.readFile('deployments.json', 'utf8', (err, data) => {
+    if (err) {
+      console.error('Error reading file:', err);
+      return;
+    }
 
-  // const governanceToken = await deploy("GovernanceToken", {
-  //   from: deployer,
-  //   log: true,
-  //   // waitConfirmations: auto-verify - wait some amount of blocks before verify
-  //   // waitConfirmations: networkConfig[network.name].confirmations || 1,
-  // });
-  // verify - on etherscan - github repo
-  log(`Deployed Governance Token to address ${governanceToken.address}`);
-  await delegate(governanceToken.address, deployer);
-  log(`Delegated`);
-};
+    // Clear the file's content
+    const emptyContent = '';
 
-// Add a delegate function
-// When you deploy this without delegate nobody has voting power because no one has their token delegated to them
-const delegate = async (
-  // delegate function
-  governanceTokenAddress: string,
-  delegatedAccount: string
-) => {
-  const governanceToken = await ethers.getContractAt(
-    "GovernanceToken",
-    governanceTokenAddress
-  );
+    // Write the new object with the governanceToken field
+    const newObject = {
+      governanceToken: governanceToken.address
+    };
 
-  // Take my votes and do whatever you want
+    // Convert the object to JSON string
+    const jsonString = JSON.stringify(newObject, null, 2);
 
-  const tx = await governanceToken.delegate(delegatedAccount);
-  await tx.wait(1);
-  // in ERC20 Votes there is numCheckpoints account has
-  // doing votes is based on checkpoints,
-  // at checkpoint x this is what everyone has as VP (voting power)
-  console.log(
-    `Checkpoints ${await governanceToken.numCheckpoints(delegatedAccount)}`
-  );
+    // Write the new content to the file
+    fs.writeFile('deployments.json', jsonString, 'utf8', err => {
+      if (err) {
+        console.error('Error writing file:', err);
+        return;
+      }
+      console.log('File has been successfully updated.');
+    });
+  });
 };
 
 export default deployGovernanceToken;

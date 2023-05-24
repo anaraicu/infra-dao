@@ -18,7 +18,7 @@ async function vote(proposalIndex: number) {
   // 1 == for
   // 2 == Abstain - usually costs gas so just don't vote
   const voteType = 1;
-  const governor = await ethers.getContract("OrganizationGovernance");
+  const governor = await ethers.getContractAt("OrganizationGovernance", "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318");
   const reason = "I like this proposal";
   const voteTxResponse = await governor.castVoteWithReason(
     proposalId,
