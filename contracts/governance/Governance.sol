@@ -34,7 +34,7 @@ contract Governance is
         uint256 budget;
         string description;
         uint256 votes;
-        mapping(address => uint256) lastUpdateTime;
+        address[] voters;
         mapping(address => uint256) votesByMember;
     }
 
@@ -97,6 +97,8 @@ contract Governance is
     }
 
     // The following functions are overrides required by Solidity.
+
+    function receiveETH() public payable {}
 
     function votingDelay()
         public
@@ -186,6 +188,46 @@ contract Governance is
         return super.proposalThreshold();
     }
 
+    function execute(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 descriptionHash
+    )
+        public
+        payable
+        override(GovernorUpgradeable, IGovernorUpgradeable)
+        organizationOnly
+        returns (uint256)
+    {
+        uint256 proposalId = hashProposal(
+            targets,
+            values,
+            calldatas,
+            descriptionHash
+        );
+
+        uint256 votersLength = proposals[proposalId].voters.length;
+        for (uint256 i = 0; i < votersLength; i++) {
+            address voter = proposals[proposalId].voters[i];
+            uint256 nVotes = proposals[proposalId].votesByMember[voter];
+            require(
+                getVotes(voter, proposalDeadline(proposalId)) >= nVotes,
+                "Governance::execute: voter does not have the cast voting power to execute proposal."
+            );
+        }
+        require(
+            proposals[proposalId].budget <= (getBalance() + msg.value),
+            "Governance::execute: budget requested exceeds funds available."
+        );
+
+        address payable receiver = payable(proposals[proposalId].proposer);
+        // Transfer funds from token contract to proposer
+        receiver.transfer(proposals[proposalId].budget);
+        super.execute(targets, values, calldatas, descriptionHash);
+        return proposalId;
+    }
+
     function _execute(
         uint256 proposalId,
         address[] memory targets,
@@ -234,44 +276,7 @@ contract Governance is
     }
 
     function getBalance() public view returns (uint256) {
-        return IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-    }
-
-    function withdraw(uint256 amount) public organizationOnly {
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20Upgradeable(tokenAddress),
-            msg.sender,
-            amount
-        );
-    }
-
-    function withdrawVote(uint256 proposalId) public virtual membersOnly {
-        require(
-            proposals[proposalId].votesByMember[msg.sender] > 0,
-            "Governance: no votes registered for this member"
-        );
-        require(
-            state(proposalId) == ProposalState.Active,
-            "OrganizationGovernance: proposal is not active"
-        );
-        uint256 amount = proposals[proposalId].votesByMember[msg.sender];
-        if (proposals[proposalId].budget > 0) {
-            SafeERC20Upgradeable.safeTransfer(
-                IERC20Upgradeable(tokenAddress),
-                msg.sender,
-                amount
-            );
-            proposals[proposalId].budget = SafeMathUpgradeable.sub(
-                proposals[proposalId].budget,
-                amount
-            );
-        }
-
-        proposals[proposalId].votesByMember[msg.sender] = 0;
-        proposals[proposalId].votes = SafeMathUpgradeable.sub(
-            proposals[proposalId].votes,
-            amount
-        );
+        return address(this).balance;
     }
 
     // Vote with all voting weight owned by the sender.
@@ -285,17 +290,42 @@ contract Governance is
         membersOnly
         returns (uint256)
     {
+        return castVote(proposalId, support, "");
+    }
+
+    function castVote(
+        uint256 proposalId,
+        uint8 support,
+        string memory reason
+    ) public payable virtual membersOnly returns (uint256) {
+        require(
+            !hasVoted(proposalId, msg.sender),
+            "Governance: you can vote only once in a voting period"
+        );
+        require(
+            state(proposalId) == ProposalState.Active,
+            "Governance: voting is closed"
+        );
         uint256 nWeight = getVotes(msg.sender, proposalSnapshot(proposalId));
-        require(nWeight > 0, "Governance::castVote: voter has no voting power");
-        proposals[proposalId].budget = 0;
+        require(
+            nWeight > 0,
+            "Governance::castVote: voter does not have enough voting power"
+        );
+
         proposals[proposalId].votes = SafeMathUpgradeable.add(
             proposals[proposalId].votes,
             nWeight
         );
-        proposals[proposalId].lastUpdateTime[msg.sender] = block.timestamp;
-        proposals[proposalId].votesByMember[msg.sender] += nWeight;
-        emit VoteCast(msg.sender, proposalId, support, nWeight, "");
-        return super.castVote(proposalId, support);
+        proposals[proposalId].budget = SafeMathUpgradeable.add(
+            proposals[proposalId].budget,
+            msg.value
+        );
+
+        _countVote(proposalId, msg.sender, support, nWeight, "");
+        proposals[proposalId].voters.push(msg.sender);
+        proposals[proposalId].votesByMember[msg.sender] = nWeight;
+        emit VoteCast(msg.sender, proposalId, support, nWeight, reason);
+        return nWeight;
     }
 
     function setAdmins(address[] memory _admins) public organizationOnly {
@@ -334,11 +364,14 @@ contract Governance is
             allProposalsFinished(),
             "Governance::closeDAO: not all proposals are finished"
         );
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20Upgradeable(tokenAddress),
-            organizationAddress,
-            IERC20Upgradeable(tokenAddress).balanceOf(address(this))
-        );
-        return this.getBalance();
+
+        console.log("balance", address(this).balance);
+        console.log("organizationAddress", organizationAddress);
+        (bool res, ) = payable(msg.sender).call{
+            value: address(this).balance,
+            gas: 1000000
+        }("");
+        console.log("res", res);
+        return address(this).balance;
     }
 }

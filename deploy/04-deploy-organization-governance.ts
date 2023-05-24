@@ -9,7 +9,7 @@ import { ethers, upgrades } from "hardhat";
 import { address } from "hardhat/internal/core/config/config-validation";
 import { ContractFactory } from "ethers";
 import { OrganizationGovernance } from "../typechain-types";
-import {time} from "@nomicfoundation/hardhat-network-helpers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 const deployGovernorContract: DeployFunction = async function (
   hre: HardhatRuntimeEnvironment

@@ -13,19 +13,17 @@ import {
 import {
   developmentChains,
   MIN_DELAY,
-  PROPOSAL_DESCRIPTION_EXAMPLE,
   PROPOSAL_THRESHOLD,
   QUORUM_PERCENTAGE,
   STORE_FUNC,
   STORE_VALUE,
   VOTING_DELAY,
   VOTING_PERIOD,
-  ZERO_ADDRESS,
+  VOTING_REASON_EXAMPLE,
 } from "../helper-config";
 import { moveBlocks } from "../utils/move-blocks";
 import { toUtf8Bytes } from "ethers/lib/utils";
 import { moveTime } from "../utils/move-time";
-import exp from "constants";
 
 const chai = require("chai");
 chai.use(solidity);
@@ -201,8 +199,6 @@ describe("OrganizationGovernance", () => {
     organizationGovernance = res.organizationGovernance;
     box = res.box;
 
-    await organizationGovernance.setAdmin(owner.getAddress());
-    await organizationGovernance.setAdmin(address1.getAddress());
     await setAdminsMembersAndVotingPower(
       membershipNFT,
       governanceToken,
@@ -240,36 +236,6 @@ describe("OrganizationGovernance", () => {
     await executorTx.wait(1);
     // const revokeTx = await timelock.revokeRole(adminRole, this.address);
     // await revokeTx.wait(1);
-  });
-
-  it("should set the admin correctly", async () => {
-    await organizationGovernance
-      .connect(owner)
-      .setAdmins([owner.getAddress(), address1.getAddress()]);
-    const isAdminOwner = await organizationGovernance.isAdmin(
-      owner.getAddress()
-    );
-    const isAdminAddress1 = await organizationGovernance.isAdmin(
-      address1.getAddress()
-    );
-
-    expect(isAdminOwner).to.be.true;
-    expect(isAdminAddress1).to.be.true;
-    // expect the function to throw an error
-    // expect the function to throw an error
-    await expect(
-      organizationGovernance.connect(address1).setAdmin(owner.getAddress())
-    ).to.be.revertedWith("OrganizationGovernance::daoOnly: not a dao call");
-  });
-
-  it("should remove the admin correctly", async () => {
-    const [admin] = await ethers.getSigners();
-
-    await organizationGovernance.setAdmin(admin.address);
-    await organizationGovernance.removeAdmin(admin.address);
-    const isAdmin = await organizationGovernance.isAdmin(admin.address);
-
-    expect(isAdmin).to.be.false;
   });
 
   it("should create a sub DAO project correctly", async () => {
@@ -313,75 +279,36 @@ describe("OrganizationGovernance", () => {
       )}`
     );
     await expect(await organizationGovernance.state(proposalId)).to.equal(1);
-    // expect(await organizationGovernance.connect(address1).connect(address1)["castVote(uint256,uint8,uint256)"](proposalId, 0, 2)).to.be.revertedWith("OrganizationGovernance: You need at least as many tokens as you want to vote with.");
-    await governanceToken
-      .connect(address1)
-      .approve(organizationGovernance.address, 1);
     const voteTx1 = await organizationGovernance
       .connect(address1)
-      .castVote(proposalId, 0);
+      ["castVote(uint256,uint8,string)"](proposalId, 0, VOTING_REASON_EXAMPLE);
     await voteTx1.wait(1);
     expect(voteTx1)
       .to.emit(organizationGovernance, "VoteCast")
-      .withArgs(await address1.getAddress(), proposalId, 0, 1, "");
+      .withArgs(
+        await address1.getAddress(),
+        proposalId,
+        0,
+        1,
+        VOTING_REASON_EXAMPLE
+      );
     expect(
-      organizationGovernance.connect(address1).castVote(proposalId, 1)
+      organizationGovernance
+        .connect(address1)
+        ["castVote(uint256,uint8)"](proposalId, 1)
     ).to.be.revertedWith(
       "OrganizationGovernance: you can vote only once in a voting period"
     );
     const proposalFinal = await organizationGovernance.proposals(proposalId);
     expect(await proposalFinal.votes).to.equal(1);
-    expect(
-      await governanceToken.balanceOf(organizationGovernance.address)
-    ).to.equal(1);
-  });
-
-  it("should be able to withdraw vote", async () => {
-    const { proposalId, proposalSnapshot } = await makeProposal(
-      encodedFunctionCall,
-      targets,
-      values,
-      organizationGovernance,
-      address1,
-      calldatas,
-      description
-    );
-
-    expect(
-      await governanceToken.balanceOf(await address1.getAddress())
-    ).to.equal(1);
-    await governanceToken
-      .connect(address1)
-      .approve(organizationGovernance.address, 1);
-
-    const voteTx1 = await organizationGovernance
-      .connect(address1)
-      .castVote(proposalId, 0);
-    await voteTx1.wait(1);
-
-    const proposalBefore = await organizationGovernance.proposals(proposalId);
-    expect(await proposalBefore.votes).to.equal(1);
-    expect(await proposalBefore.budget).to.equal(1);
-
-    expect(
-      await governanceToken.balanceOf(await address1.getAddress())
-    ).to.equal(0);
-    expect(await organizationGovernance.getBalance()).to.equal(1);
-    await organizationGovernance.connect(address1).withdrawVote(proposalId);
-    expect(await organizationGovernance.getBalance()).to.equal(0);
-    expect(
-      await governanceToken.balanceOf(await address1.getAddress())
-    ).to.equal(1);
-
-    const proposalAfter = await organizationGovernance.proposals(proposalId);
-    expect(await proposalAfter.votes).to.equal(0);
-    expect(await proposalAfter.budget).to.equal(0);
   });
 
   it("should allow only owner to set new proposal threshold", async () => {
     await expect(
       organizationGovernance.connect(address1).setProposalThreshold(2)
-    ).to.be.revertedWith("OrganizationGovernance::daoOnly: not a dao call");
+    ).to.be.revertedWith(
+      "OrganizationGovernance::daoOwnerOnly: not a dao call"
+    );
     await organizationGovernance.setProposalThreshold(2);
     expect(await organizationGovernance.proposalThreshold()).to.equal(2);
   });
@@ -396,11 +323,8 @@ describe("OrganizationGovernance", () => {
       calldatas,
       description
     );
-    console.log(
-      `Gov Token Supply: ${await governanceToken.getPastTotalSupply(
-        proposalSnapshot
-      )}`
-    );
+    expect(await organizationGovernance.state(proposalId)).to.equal(1);
+
     console.log(
       `VP of signers: [${await governanceToken
         .connect(owner)
@@ -417,38 +341,33 @@ describe("OrganizationGovernance", () => {
     console.log(`Voting on proposal ${proposalId}`);
     console.log(`====================================`);
 
-    await governanceToken
-      .connect(address1)
-      .approve(organizationGovernance.address, 1);
-    await governanceToken
-      .connect(address2)
-      .approve(organizationGovernance.address, 1);
-
     // expect(await organizationGovernance.connect(address1).connect(address1)["castVote(uint256,uint8,uint256)"](proposalId, 0, 2)).to.be.revertedWith("OrganizationGovernance: You need at least as many tokens as you want to vote with.");
     const voteTx1 = await organizationGovernance
       .connect(address1)
-      .castVote(proposalId, 1);
+      ["castVote(uint256,uint8,string)"](proposalId, 1, VOTING_REASON_EXAMPLE);
     await voteTx1.wait(1);
     expect(voteTx1)
       .to.emit(organizationGovernance, "VoteCast")
-      .withArgs(await address1.getAddress(), proposalId, 1, 1, "");
-    expect(
-      await governanceToken.balanceOf(await address1.getAddress())
-    ).to.equal(0);
+      .withArgs(
+        await address1.getAddress(),
+        proposalId,
+        1,
+        1,
+        VOTING_REASON_EXAMPLE
+      );
 
     const voteTx2 = await organizationGovernance
       .connect(address2)
-      .castVote(proposalId, 1);
+      ["castVote(uint256,uint8)"](proposalId, 1);
     await voteTx2.wait(1);
-    expect(
-      await governanceToken.balanceOf(await address2.getAddress())
-    ).to.equal(0);
     expect(voteTx2)
       .to.emit(organizationGovernance, "VoteCast")
       .withArgs(await address2.getAddress(), proposalId, 1, 1, "");
 
     expect(
-      organizationGovernance.connect(address3).castVote(proposalId, 1)
+      organizationGovernance
+        .connect(address3)
+        ["castVote(uint256,uint8,string)"](proposalId, 1, VOTING_REASON_EXAMPLE)
     ).to.be.revertedWith("OrganizationGovernance::membersOnly: not a member");
     // VOTING POWER implementation
 
@@ -464,20 +383,6 @@ describe("OrganizationGovernance", () => {
     expect(await organizationGovernance.state(proposalId)).to.equal(4);
     const proposalFinal = await organizationGovernance.proposals(proposalId);
     expect(await proposalFinal.votes).to.equal(2);
-    expect(
-      await governanceToken.balanceOf(organizationGovernance.address)
-    ).to.equal(2);
-    console.log(
-      `VP of signers: [${await governanceToken
-        .connect(owner)
-        .balanceOf(await owner.getAddress())}, ${await governanceToken
-        .connect(address1)
-        .getVotes(await address1.getAddress())}, ${await governanceToken
-        .connect(address2)
-        .getVotes(await address2.getAddress())}, ${await governanceToken
-        .connect(address3)
-        .getVotes(await address3.getAddress())}]`
-    );
 
     console.log("Queueing...");
     const queueTx = await organizationGovernance
@@ -498,13 +403,5 @@ describe("OrganizationGovernance", () => {
 
     const boxNewValue = await box.retrieve();
     console.log(`New Box Value: ${boxNewValue.toString()}`);
-
-    const withdrawTx = await organizationGovernance
-      .connect(owner)
-      .transferProposalFunds(proposalId, await owner.getAddress());
-    await withdrawTx.wait(1);
-    expect(await governanceToken.balanceOf(await owner.getAddress())).to.equal(
-      2
-    );
   });
 });

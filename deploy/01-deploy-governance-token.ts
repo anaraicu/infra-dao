@@ -21,37 +21,37 @@ const deployGovernanceToken: DeployFunction = async function (
 
   const governanceTokenFactory: ContractFactory =
     await ethers.getContractFactory("GovernanceToken");
-  const governanceToken = (await upgrades.deployProxy(
+  const governanceToken = await upgrades.deployProxy(
     governanceTokenFactory,
     [],
     { initializer: "initialize" }
-  ));
+  );
   await governanceToken.deployed();
   log("Governance Token deployed to:", governanceToken.address);
-  fs.readFile('deployments.json', 'utf8', (err, data) => {
+  fs.readFile("deployments.json", "utf8", (err, data) => {
     if (err) {
-      console.error('Error reading file:', err);
+      console.error("Error reading file:", err);
       return;
     }
 
     // Clear the file's content
-    const emptyContent = '';
+    const emptyContent = "";
 
     // Write the new object with the governanceToken field
     const newObject = {
-      governanceToken: governanceToken.address
+      governanceToken: governanceToken.address,
     };
 
     // Convert the object to JSON string
     const jsonString = JSON.stringify(newObject, null, 2);
 
     // Write the new content to the file
-    fs.writeFile('deployments.json', jsonString, 'utf8', err => {
+    fs.writeFile("deployments.json", jsonString, "utf8", (err) => {
       if (err) {
-        console.error('Error writing file:', err);
+        console.error("Error writing file:", err);
         return;
       }
-      console.log('File has been successfully updated.');
+      console.log("File has been successfully updated.");
     });
   });
 };

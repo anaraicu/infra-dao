@@ -44,40 +44,12 @@ contract QuadraticGovernance is Governance {
         _minQuadraticVoteThreshold = amount;
     }
 
-    function withdrawVote(uint256 proposalId) public override membersOnly {
-        require(
-            proposals[proposalId].budget > 0 &&
-                proposals[proposalId].votesByMember[msg.sender] > 0,
-            "Governance: no votes registered for this member"
-        );
-        require(
-            state(proposalId) == ProposalState.Active,
-            "OrganizationGovernance: proposal is not active"
-        );
-        uint256 voteWeight = proposals[proposalId].votesByMember[msg.sender];
-        uint256 amount = SafeMathUpgradeable.mul(voteWeight, voteWeight);
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20Upgradeable(tokenAddress),
-            msg.sender,
-            amount
-        );
-        proposals[proposalId].budget = SafeMathUpgradeable.sub(
-            proposals[proposalId].budget,
-            amount
-        );
-
-        proposals[proposalId].votesByMember[msg.sender] = 0;
-        proposals[proposalId].votes = SafeMathUpgradeable.sub(
-            proposals[proposalId].votes,
-            voteWeight
-        );
-    }
-
     function castVote(
         uint256 proposalId,
         uint8 support,
-        uint256 amount
-    ) public membersOnly returns (uint256) {
+        uint256 amount,
+        string memory reason
+    ) public payable membersOnly returns (uint256) {
         require(
             state(proposalId) == ProposalState.Active,
             "QuadraticGovernance: voting is closed"
@@ -93,36 +65,49 @@ contract QuadraticGovernance is Governance {
 
         uint256 nWeight = getVotes(msg.sender, proposalSnapshot(proposalId));
         uint256 voteWeight = SafeMathUpgradeable.mul(amount, amount);
+        uint256 fee;
+        if (amount == 1) {
+            fee = 0;
+        } else {
+            fee = SafeMathUpgradeable.mul(voteWeight, 0.0001 ether);
+        }
         require(
             voteWeight <= nWeight,
             "QuadraticGovernance: You need at least as many tokens as you want to vote with."
         );
+        require(
+            fee <= msg.value,
+            "QuadraticGovernance: amount sent does not cover fee"
+        );
+
         proposals[proposalId].votes = SafeMathUpgradeable.add(
             proposals[proposalId].votes,
             amount
         );
         proposals[proposalId].budget = SafeMathUpgradeable.add(
             proposals[proposalId].budget,
-            voteWeight
+            msg.value
         );
 
         _countVote(proposalId, msg.sender, support, voteWeight, "");
-        proposals[proposalId].lastUpdateTime[msg.sender] = block.timestamp;
+        proposals[proposalId].voters.push(msg.sender);
         proposals[proposalId].votesByMember[msg.sender] = amount;
-        SafeERC20Upgradeable.safeTransferFrom(
-            IERC20Upgradeable(tokenAddress),
-            msg.sender,
-            address(this),
-            voteWeight
-        );
-        emit VoteCast(msg.sender, proposalId, support, amount, "");
+        emit VoteCast(msg.sender, proposalId, support, amount, reason);
         return voteWeight;
+    }
+
+    function castVote(
+        uint256 proposalId,
+        uint8 support,
+        string memory reason
+    ) public payable override membersOnly returns (uint256) {
+        return castVote(proposalId, support, 1, reason);
     }
 
     function castVote(
         uint256 proposalId,
         uint8 support
     ) public override membersOnly returns (uint256) {
-        return castVote(proposalId, support, 1);
+        return castVote(proposalId, support, 1, "");
     }
 }

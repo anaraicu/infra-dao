@@ -38,9 +38,7 @@ contract MultiSigGovernance is Governance {
         return _requiredSignatures;
     }
 
-    function setRequiredSignatures(
-        uint256 amount
-    ) public organizationOnly {
+    function setRequiredSignatures(uint256 amount) public organizationOnly {
         _requiredSignatures = amount;
     }
 
@@ -71,15 +69,16 @@ contract MultiSigGovernance is Governance {
 
     function castVote(
         uint256 proposalId,
-        uint8 support
-    ) public override membersOnly returns (uint256) {
+        uint8 support,
+        string memory reason
+    ) public payable override membersOnly returns (uint256) {
         require(
             state(proposalId) == ProposalState.Active,
-            "MultiSigGovernance: voting is closed"
+            "MultiSigGovernance::castVote: voting is closed"
         );
         require(
             !hasVoted(proposalId, msg.sender),
-            "OrganizationGovernance: you can vote only once in a voting period"
+            "OrganizationGovernance::castVote: you can vote only once in a voting period"
         );
         uint256 amount = 1;
         uint256 nWeight = getVotes(msg.sender, proposalSnapshot(proposalId));
@@ -87,7 +86,6 @@ contract MultiSigGovernance is Governance {
             nWeight >= amount,
             "MultiSigGovernance::castVote: not enough voting power"
         );
-
         proposals[proposalId].votes = SafeMathUpgradeable.add(
             proposals[proposalId].votes,
             amount
@@ -95,9 +93,15 @@ contract MultiSigGovernance is Governance {
         proposals[proposalId].budget = 0;
         _countVote(proposalId, msg.sender, support, amount, "");
         proposals[proposalId].votesByMember[msg.sender] = amount;
-        proposals[proposalId].lastUpdateTime[msg.sender] = block.timestamp;
-        emit VoteCast(msg.sender, proposalId, support, amount, "");
+        emit VoteCast(msg.sender, proposalId, support, amount, reason);
         return amount;
+    }
+
+    function castVote(
+        uint256 proposalId,
+        uint8 support
+    ) public override membersOnly returns (uint256) {
+        return castVote(proposalId, support, "");
     }
 
     function signers() public view returns (address[] memory) {

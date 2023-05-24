@@ -4,30 +4,26 @@ import { Contract, ContractFactory, Signer } from "ethers";
 import { solidity } from "ethereum-waffle";
 import {
   MembershipNFT,
-  MembershipNFT__factory,
   OrganizationGovernance,
   GovernanceToken,
   TimeLock,
-  Governance,
   MultiSigGovernance,
 } from "../typechain-types";
 import {
   developmentChains,
   MIN_DELAY,
-  PROPOSAL_DESCRIPTION_EXAMPLE,
   PROPOSAL_THRESHOLD,
   QUORUM_PERCENTAGE,
   STORE_FUNC,
   STORE_VALUE,
-  VOTING_DELAY,
   VOTING_PERIOD,
-  ZERO_ADDRESS,
 } from "../helper-config";
 import { moveBlocks } from "../utils/move-blocks";
 import { toUtf8Bytes } from "ethers/lib/utils";
 import { moveTime } from "../utils/move-time";
 import {
-  getTokenAndGovernanceContracts, makeProposal,
+  getTokenAndGovernanceContracts,
+  makeProposal,
   setAdminsMembersAndVotingPower,
 } from "./OrganizationGovernanceTest";
 
@@ -132,51 +128,59 @@ describe("MultiSigGovernance", () => {
     await multiSigGovernance.setSigners(multiSigners);
 
     // Add new member with VP
-    await membershipNFT.mint(await address4.getAddress(), 0, 1, toUtf8Bytes(""));
+    await membershipNFT.mint(
+      await address4.getAddress(),
+      0,
+      1,
+      toUtf8Bytes("")
+    );
     await governanceToken.mint(await address4.getAddress(), 1);
   });
 
-  it (`should be able to set required signatures correctly`, async () => {
+  it(`should be able to set required signatures correctly`, async () => {
     expect(await multiSigGovernance.requiredSignatures()).to.equal(4);
-    const setRequiredSignaturesTx = await multiSigGovernance.setRequiredSignatures(2);
+    const setRequiredSignaturesTx =
+      await multiSigGovernance.setRequiredSignatures(2);
     expect(await multiSigGovernance.requiredSignatures()).to.equal(2);
   });
 
-  it (`should be able to set signers correctly`, async () => {
+  it(`should be able to set signers correctly`, async () => {
     const result = await multiSigGovernance.signers();
     expect(result[0]).to.equal(multiSigners[0]);
     expect(result[1]).to.equal(multiSigners[1]);
   });
 
-  it('should pass proposal if signers vote', async () => {
+  it("should pass proposal if signers vote", async () => {
     // Test with all addresses as members
     const { proposalId, proposalSnapshot } = await makeProposal(
-        encodedFunctionCall,
-        targets,
-        values,
-        multiSigGovernance,
-        address1,
-        calldatas,
-        description
+      encodedFunctionCall,
+      targets,
+      values,
+      multiSigGovernance,
+      address1,
+      calldatas,
+      description
     );
 
     const voteTx1 = await multiSigGovernance
-        .connect(address1)
-        .castVote(proposalId, 1);
+      .connect(address1)
+      ["castVote(uint256,uint8)"](proposalId, 1);
     await voteTx1.wait(1);
 
     const voteTx2 = await multiSigGovernance
-        .connect(address2)
-        .castVote(proposalId, 1);
+      .connect(address2)
+      ["castVote(uint256,uint8)"](proposalId, 1);
     await voteTx2.wait(1);
 
     const voteTx4 = await multiSigGovernance
-        .connect(address4)
-        .castVote(proposalId, 1);
+      .connect(address4)
+      ["castVote(uint256,uint8)"](proposalId, 1);
     await voteTx4.wait(1);
 
     expect(
-        multiSigGovernance.connect(address3).castVote(proposalId, 1)
+      multiSigGovernance
+        .connect(address3)
+        ["castVote(uint256,uint8)"](proposalId, 1)
     ).to.be.revertedWith("Governance::membersOnly: not a member");
     // VOTING POWER implementation
 
@@ -185,14 +189,14 @@ describe("MultiSigGovernance", () => {
     }
 
     const proposalFinal = await multiSigGovernance.proposals(proposalId);
-    expect(proposalFinal.votes).equal(3)
+    expect(proposalFinal.votes).equal(3);
     expect(proposalFinal.budget).equal(0);
     expect(await multiSigGovernance.state(proposalId)).to.equal(4);
 
     console.log("Queueing...");
     const queueTx = await multiSigGovernance
-        .connect(owner)
-        .queue([box.address], [0], [encodedFunctionCall], descriptionHash);
+      .connect(owner)
+      .queue([box.address], [0], [encodedFunctionCall], descriptionHash);
     await queueTx.wait(1);
 
     if (developmentChains.includes(network.name)) {
@@ -202,40 +206,42 @@ describe("MultiSigGovernance", () => {
 
     console.log("Executing");
     const executeTx = await multiSigGovernance
-        .connect(owner)
-        .execute([box.address], [0], [encodedFunctionCall], descriptionHash);
+      .connect(owner)
+      .execute([box.address], [0], [encodedFunctionCall], descriptionHash);
     await executeTx.wait(1);
     const boxNewValue = await box.retrieve();
     console.log(`New Box Value: ${boxNewValue.toString()}`);
     expect(boxNewValue).to.equal(STORE_VALUE);
   });
 
-  it('should not pass proposal if not enough signers vote', async () => {
+  it("should not pass proposal if not enough signers vote", async () => {
     // Test with all addresses as members
     const { proposalId, proposalSnapshot } = await makeProposal(
-        encodedFunctionCall,
-        targets,
-        values,
-        multiSigGovernance,
-        address1,
-        calldatas,
-        description
+      encodedFunctionCall,
+      targets,
+      values,
+      multiSigGovernance,
+      address1,
+      calldatas,
+      description
     );
 
     const voteTx1 = await multiSigGovernance
-        .connect(address1)
-        .castVote(proposalId, 1);
+      .connect(address1)
+      ["castVote(uint256,uint8)"](proposalId, 1);
     await voteTx1.wait(1);
 
     // address2 does not vote
 
     const voteTx4 = await multiSigGovernance
-        .connect(address4)
-        .castVote(proposalId, 1);
+      .connect(address4)
+      ["castVote(uint256,uint8)"](proposalId, 1);
     await voteTx4.wait(1);
 
     expect(
-        multiSigGovernance.connect(address3).castVote(proposalId, 1)
+      multiSigGovernance
+        .connect(address3)
+        ["castVote(uint256,uint8)"](proposalId, 1)
     ).to.be.revertedWith("Governance::membersOnly: not a member");
     // VOTING POWER implementation
 
@@ -244,14 +250,14 @@ describe("MultiSigGovernance", () => {
     }
 
     const proposalFinal = await multiSigGovernance.proposals(proposalId);
-    expect(proposalFinal.votes).equal(2)
+    expect(proposalFinal.votes).equal(2);
     expect(proposalFinal.budget).equal(0);
     expect(await multiSigGovernance.state(proposalId)).to.equal(4);
 
     console.log("Queueing...");
     const queueTx = await multiSigGovernance
-        .connect(owner)
-        .queue([box.address], [0], [encodedFunctionCall], descriptionHash);
+      .connect(owner)
+      .queue([box.address], [0], [encodedFunctionCall], descriptionHash);
     await queueTx.wait(1);
 
     if (developmentChains.includes(network.name)) {
@@ -261,9 +267,9 @@ describe("MultiSigGovernance", () => {
 
     console.log("Executing... Should fail");
     expect(
-    multiSigGovernance
+      multiSigGovernance
         .connect(owner)
-        .execute([box.address], [0], [encodedFunctionCall], descriptionHash)).to.be.revertedWith("MultiSigGovernance: not enough signatures");
-
+        .execute([box.address], [0], [encodedFunctionCall], descriptionHash)
+    ).to.be.revertedWith("MultiSigGovernance: not enough signatures");
   });
 });

@@ -18,7 +18,7 @@ REPORT_GAS=true npx hardhat test
 # DAO trials
 
 1. Smart contracts - DONE
-2. Hardhat deployment scripts  
+2. Hardhat deployment scripts
 3. Write scripts to interact with them
 4. Write tests for hardhat - DONE
 5. Integrate with Sepolia network

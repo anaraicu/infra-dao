@@ -34,7 +34,10 @@ contract Box is OwnableUpgradeable {
         _;
     }
 
-    function registerSubDAO(bytes32 id, address subDAOImplementation) public daoOnly {
+    function registerSubDAO(
+        bytes32 id,
+        address subDAOImplementation
+    ) public daoOnly {
         subDAOs[id] = subDAOImplementation;
     }
 

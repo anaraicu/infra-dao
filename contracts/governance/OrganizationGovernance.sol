@@ -42,14 +42,13 @@ contract OrganizationGovernance is
         uint256 budget;
         string description;
         uint256 votes;
-        mapping(address => uint256) lastUpdateTime;
+        address[] voters;
         mapping(address => uint256) votesByMember;
     }
 
     uint256[] public proposalIds;
     address[] public subDAO;
     mapping(uint256 => Proposal) public proposals;
-    mapping(address => bool) public isAdmin;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -80,14 +79,6 @@ contract OrganizationGovernance is
         tokenAddress = address(_token);
     }
 
-    modifier adminsOnly() {
-        require(
-            isAdmin[msg.sender],
-            "OrganizationGovernance::adminsOnly: not an admin"
-        );
-        _;
-    }
-
     modifier membersOnly() {
         require(
             IERC1155Upgradeable(membershipTokenAddress).balanceOf(
@@ -99,10 +90,10 @@ contract OrganizationGovernance is
         _;
     }
 
-    modifier daoOnly() {
+    modifier daoOwnerOnly() {
         require(
             msg.sender == owner,
-            "OrganizationGovernance::daoOnly: not a dao call"
+            "OrganizationGovernance::daoOwnerOnly: not a dao call"
         );
         _;
     }
@@ -115,25 +106,12 @@ contract OrganizationGovernance is
         _;
     }
 
-    function setAdmins(address[] memory _admins) public daoOnly {
-        require(
-            _admins.length > 0,
-            "OrganizationGovernance::setAdmins: admins must not be empty"
-        );
-        for (uint256 i = 0; i < _admins.length; i++) {
-            isAdmin[_admins[i]] = true;
-        }
-    }
-
-    function setAdmin(address _admin) public daoOnly {
-        isAdmin[_admin] = true;
-    }
-
-    function removeAdmin(address _admin) public daoOnly {
-        isAdmin[_admin] = false;
-    }
-
     // The following functions are overrides required by Solidity.
+    function receiveETH() public payable {}
+
+    function getBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
 
     function votingDelay()
         public
@@ -153,7 +131,7 @@ contract OrganizationGovernance is
         return super.votingPeriod();
     }
 
-    function setVotingPeriod(uint256 timeSeconds) public override daoOnly {
+    function setVotingPeriod(uint256 timeSeconds) public override daoOwnerOnly {
         _setVotingPeriod(timeSeconds);
         // receive in seconds
     }
@@ -173,11 +151,13 @@ contract OrganizationGovernance is
         return super.quorumNumerator();
     }
 
-    function setQuorumFraction(uint256 _quorumFraction) public virtual daoOnly {
+    function setQuorumFraction(
+        uint256 _quorumFraction
+    ) public virtual daoOwnerOnly {
         _updateQuorumNumerator(_quorumFraction);
     }
 
-    function setQuorumNumeric(uint256 _quorum) public virtual daoOnly {
+    function setQuorumNumeric(uint256 _quorum) public virtual daoOwnerOnly {
         _updateQuorumNumerator(SafeMathUpgradeable.mul(_quorum, 100));
     }
 
@@ -227,7 +207,7 @@ contract OrganizationGovernance is
         return super.propose(targets, values, calldatas, description);
     }
 
-    function createSubDaoProject(address _subDAO) public daoOnly {
+    function createSubDaoProject(address _subDAO) public daoOwnerOnly {
         require(
             _subDAO != address(0),
             "OrganizationGovernance::createSubDaoProject: subDAO must not be 0 address"
@@ -257,8 +237,48 @@ contract OrganizationGovernance is
 
     function setProposalThreshold(
         uint256 threshold
-    ) public virtual override(GovernorSettingsUpgradeable) daoOnly {
+    ) public virtual override(GovernorSettingsUpgradeable) daoOwnerOnly {
         super._setProposalThreshold(threshold);
+    }
+
+    function execute(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 descriptionHash
+    )
+        public
+        payable
+        override(GovernorUpgradeable, IGovernorUpgradeable)
+        daoOwnerOnly
+        returns (uint256)
+    {
+        uint256 proposalId = hashProposal(
+            targets,
+            values,
+            calldatas,
+            descriptionHash
+        );
+
+        uint256 votersLength = proposals[proposalId].voters.length;
+        for (uint256 i = 0; i < votersLength; i++) {
+            address voter = proposals[proposalId].voters[i];
+            uint256 nVotes = proposals[proposalId].votesByMember[voter];
+            require(
+                getVotes(voter, proposalDeadline(proposalId)) >= nVotes,
+                "OrganizationGovernance::execute: voter does not have the cast voting power to execute proposal."
+            );
+        }
+        require(
+            proposals[proposalId].budget <= (getBalance() + msg.value),
+            "OrganizationGovernance::execute: budget requested exceeds funds available."
+        );
+
+        address payable receiver = payable(proposals[proposalId].proposer);
+        // Transfer funds from token contract to proposer
+        receiver.transfer(proposals[proposalId].budget);
+        super.execute(targets, values, calldatas, descriptionHash);
+        return proposalId;
     }
 
     function _execute(
@@ -308,72 +328,11 @@ contract OrganizationGovernance is
         return super.supportsInterface(interfaceId);
     }
 
-    function getBalance() public view returns (uint256) {
-        return IERC20Upgradeable(tokenAddress).balanceOf(address(this));
-    }
-
-    function withdrawVote(uint256 proposalId) public membersOnly {
-        require(
-            proposals[proposalId].budget > 0 &&
-                proposals[proposalId].votesByMember[msg.sender] > 0,
-            "OrganizationGovernance: no votes registered for this member"
-        );
-        require(
-            state(proposalId) == ProposalState.Active,
-            "OrganizationGovernance: proposal is not active"
-        );
-        uint256 amount = proposals[proposalId].votesByMember[msg.sender];
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20Upgradeable(tokenAddress),
-            msg.sender,
-            amount
-        );
-        proposals[proposalId].votesByMember[msg.sender] = 0;
-        proposals[proposalId].votes = SafeMathUpgradeable.sub(
-            proposals[proposalId].votes,
-            amount
-        );
-        proposals[proposalId].budget = SafeMathUpgradeable.sub(
-            proposals[proposalId].budget,
-            amount
-        );
-    }
-
-    function withdraw(uint256 proposalId, address account) internal {
-        require(
-            state(proposalId) == ProposalState.Succeeded ||
-                state(proposalId) == ProposalState.Executed,
-            "OrganizationGovernance: proposal not successful for withdrawing funds"
-        );
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20Upgradeable(tokenAddress),
-            account,
-            proposals[proposalId].budget
-        );
-    }
-
-    function transferProposalFunds(
-        uint256 proposalId,
-        address account
-    ) public daoOnly {
-        require(
-            state(proposalId) == ProposalState.Succeeded ||
-                state(proposalId) == ProposalState.Executed,
-            "OrganizationGovernance: proposal not successful for withdrawing funds"
-        );
-        withdraw(proposalId, account);
-    }
-
     function castVote(
         uint256 proposalId,
-        uint8 support
-    )
-        public
-        virtual
-        override(GovernorUpgradeable, IGovernorUpgradeable)
-        membersOnly
-        returns (uint256)
-    {
+        uint8 support,
+        string memory reason
+    ) public payable virtual membersOnly returns (uint256) {
         require(
             !hasVoted(proposalId, msg.sender),
             "OrganizationGovernance: you can vote only once in a voting period"
@@ -394,19 +353,26 @@ contract OrganizationGovernance is
         );
         proposals[proposalId].budget = SafeMathUpgradeable.add(
             proposals[proposalId].budget,
-            voteWeight
+            msg.value
         );
 
         _countVote(proposalId, msg.sender, support, voteWeight, "");
-        proposals[proposalId].lastUpdateTime[msg.sender] = block.timestamp;
+        proposals[proposalId].voters.push(msg.sender);
         proposals[proposalId].votesByMember[msg.sender] = voteWeight;
-        SafeERC20Upgradeable.safeTransferFrom(
-            IERC20Upgradeable(tokenAddress),
-            msg.sender,
-            address(this),
-            voteWeight
-        );
-        emit VoteCast(msg.sender, proposalId, support, voteWeight, "");
+        emit VoteCast(msg.sender, proposalId, support, voteWeight, reason);
         return voteWeight;
+    }
+
+    function castVote(
+        uint256 proposalId,
+        uint8 support
+    )
+        public
+        virtual
+        override(GovernorUpgradeable, IGovernorUpgradeable)
+        membersOnly
+        returns (uint256)
+    {
+        return castVote(proposalId, support, "");
     }
 }

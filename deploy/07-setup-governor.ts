@@ -4,7 +4,8 @@ import { ethers } from "hardhat";
 import { ZERO_ADDRESS } from "../helper-config";
 
 const timeLockAddress = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853";
-const organizationGovernanceAddress = "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318";
+const organizationGovernanceAddress =
+  "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318";
 const deploySetupContracts: DeployFunction = async function (
   hre: HardhatRuntimeEnvironment
 ) {
@@ -29,7 +30,10 @@ const deploySetupContracts: DeployFunction = async function (
     "----------------------------------------------------------------------------------------------"
   );
   log("Setting up contracts for roles...");
-  const proposerTx = await timeLock.grantRole(proposerRole, governorOrganization.address);
+  const proposerTx = await timeLock.grantRole(
+    proposerRole,
+    governorOrganization.address
+  );
   await proposerTx.wait(1);
 
   const proposerTx2 = await timeLock.grantRole(
