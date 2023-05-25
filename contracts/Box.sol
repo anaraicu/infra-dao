@@ -13,6 +13,7 @@ contract Box is OwnableUpgradeable {
     uint256 public value;
 
     mapping(bytes32 => address) public subDAOs;
+    address[] public subDAOAddresses;
 
     event getGas(uint256 gas);
     event ValueChanged(uint256 newValue);
@@ -29,21 +30,14 @@ contract Box is OwnableUpgradeable {
         _transferOwnership(_governor);
     }
 
-    modifier daoOnly() {
-        require(msg.sender == governor, "Only DAO can update.");
-        _;
-    }
-
-    function registerSubDAO(
-        bytes32 id,
-        address subDAOImplementation
-    ) public daoOnly {
+    function registerSubDAO(bytes32 id, address subDAOImplementation) public {
         subDAOs[id] = subDAOImplementation;
     }
 
     function deploySubDAO(bytes32 id) external returns (address) {
         address deployed = ClonesUpgradeable.clone(subDAOs[id]);
         emit SubDAOAdded(id, deployed);
+        subDAOAddresses.push(deployed);
         return deployed;
     }
 
@@ -57,15 +51,19 @@ contract Box is OwnableUpgradeable {
         return value;
     }
 
+    function retrieveLastDeployed() public view returns (address) {
+        return subDAOAddresses[subDAOAddresses.length - 1];
+    }
+
     function setGovernor(address _governor) public onlyOwner {
         governor = _governor;
     }
 
-    function setAdmin(address _admin) public daoOnly {
+    function setAdmin(address _admin) public onlyOwner {
         admins[_admin] = true;
     }
 
-    function removeAdmin(address _admin) public daoOnly {
+    function removeAdmin(address _admin) public onlyOwner {
         admins[_admin] = false;
     }
 

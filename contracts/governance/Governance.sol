@@ -213,7 +213,7 @@ contract Governance is
             uint256 nVotes = proposals[proposalId].votesByMember[voter];
             require(
                 getVotes(voter, proposalDeadline(proposalId)) >= nVotes,
-                "Governance::execute: voter does not have the cast voting power to execute proposal."
+                "Governance::execute: voter no longer has the casted VP."
             );
         }
         require(

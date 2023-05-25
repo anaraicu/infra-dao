@@ -46,7 +46,7 @@ export async function makeProposal(
   const proposeTx = await organizationGovernance
     .connect(address1)
     .propose(targets, values, calldatas, description, {
-      gasLimit: 250000,
+      gasLimit: 500000,
     });
   if (developmentChains.includes(network.name)) {
     await moveBlocks(VOTING_DELAY + 1);
