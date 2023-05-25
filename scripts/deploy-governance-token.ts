@@ -1,24 +1,9 @@
-import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { DeployFunction } from "hardhat-deploy/types";
 import { ethers, upgrades } from "hardhat";
 import { ContractFactory } from "ethers";
 import { GovernanceToken } from "../typechain-types";
 import * as fs from "fs";
-
-const governanceTokenAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
-const membershipNFTAddress = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
-const timeLockAddress = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853";
-// Deploy functions that will run with hardhat
-const deployGovernanceToken: DeployFunction = async function (
-  hre: HardhatRuntimeEnvironment
-) {
-  console.log("Deploying Governance Token... ");
-  const { getNamedAccounts, deployments, network } = hre;
-  // import accounts from hardhat config right into deploy script
-  const { deploy, log } = deployments;
-  const { deployer } = await getNamedAccounts(); // always the 0th
-  log("Deploying Governance Token... ");
-
+import { deploymentsFile } from "../helper-config";
+export async function deployGovernanceToken() {
   const governanceTokenFactory: ContractFactory =
     await ethers.getContractFactory("GovernanceToken");
   const governanceToken = await upgrades.deployProxy(
@@ -27,16 +12,13 @@ const deployGovernanceToken: DeployFunction = async function (
     { initializer: "initialize" }
   );
   await governanceToken.deployed();
-  log("Governance Token deployed to:", governanceToken.address);
-  fs.readFile("deployments.json", "utf8", (err, data) => {
+
+  console.log("Governance Token deployed to:", governanceToken.address);
+  fs.readFile(deploymentsFile, "utf8", (err, data) => {
     if (err) {
       console.error("Error reading file:", err);
       return;
     }
-
-    // Clear the file's content
-    const emptyContent = "";
-
     // Write the new object with the governanceToken field
     const newObject = {
       governanceToken: governanceToken.address,
@@ -54,6 +36,11 @@ const deployGovernanceToken: DeployFunction = async function (
       console.log("File has been successfully updated.");
     });
   });
-};
+}
 
-export default deployGovernanceToken;
+// We recommend this pattern to be able to use async/await everywhere
+// and properly handle errors.
+deployGovernanceToken().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

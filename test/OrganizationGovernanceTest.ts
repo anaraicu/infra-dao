@@ -222,7 +222,6 @@ describe("OrganizationGovernance", () => {
 
     const proposerRole = await timelock.PROPOSER_ROLE();
     const executorRole = await timelock.EXECUTOR_ROLE();
-    const adminRole = await timelock.DEFAULT_ADMIN_ROLE();
 
     const proposerTx = await timelock.grantRole(
       proposerRole,

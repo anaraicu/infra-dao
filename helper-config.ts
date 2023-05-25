@@ -12,4 +12,5 @@ export const STORE_VALUE = 100;
 export const DEFAULT_VOTING_PERIOD = 7200; // 1 day
 
 export const proposalsFile = "proposals.json";
+export const deploymentsFile = "deployments.json";
 export const developmentChains = ["hardhat", "localhost"];
