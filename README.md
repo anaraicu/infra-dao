@@ -81,6 +81,10 @@ In the following order
  yarn hardhat run scripts/deploy-box.ts --network localhost
 
  yarn hardhat run scripts/deploy-sub-dao.ts --network localhost
+
+ yarn hardhat run scripts/deploy-dao-factory.ts --network localhost
+
+ yarn hardhat run scripts/deploy-new-org-dao.ts --network localhost
 ```
 
 Contract addresses will be registered in `./deployments.json`
