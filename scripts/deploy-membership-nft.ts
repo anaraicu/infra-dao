@@ -3,6 +3,7 @@ import { ContractFactory } from "ethers";
 import { MembershipNFT } from "../typechain-types";
 import * as fs from "fs";
 import { deploymentsFile } from "../helper-config";
+
 export async function deployMembershipNFT(uri: string, initialSupply: number) {
   const membershipNFTFactory: ContractFactory = await ethers.getContractFactory(
     "MembershipNFT"
@@ -25,6 +26,7 @@ export async function deployMembershipNFT(uri: string, initialSupply: number) {
   fs.writeFileSync(deploymentsFile, JSON.stringify(data, null, 2));
   console.log("Updated deployments.json file successfully.");
 }
+
 deployMembershipNFT("uri", 10).catch((error) => {
   console.error(error);
   process.exitCode = 1;

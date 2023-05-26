@@ -5,13 +5,18 @@ import {
   MIN_DELAY,
   STORE_VALUE,
   PROPOSAL_DESCRIPTION_EXAMPLE,
+  deploymentsFile,
 } from "../helper-config";
 import { moveBlocks } from "../utils/move-blocks";
 import { moveTime } from "../utils/move-time";
+import fs from "fs";
 
 export async function queueAndExecute() {
+  const content = fs.readFileSync(deploymentsFile, "utf8");
+  const data = JSON.parse(content);
+
   const args = [STORE_VALUE];
-  const box = await ethers.getContract("Box");
+  const box = await ethers.getContractAt("Box", data.box);
   const encodedFunctionCall = box.interface.encodeFunctionData(
     STORE_FUNC,
     args
@@ -21,7 +26,10 @@ export async function queueAndExecute() {
   ); // look for the description hash on-chain -
   // it is cheaper to look for hash (gas-wise) than to look for the string itself
 
-  const governor = await ethers.getContract("OrganizationGovernance");
+  const governor = await ethers.getContractAt(
+    "OrganizationGovernance",
+    data.organizationGovernance
+  );
 
   console.log("Queueing...");
   const queueTx = await governor.queue(

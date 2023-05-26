@@ -5,8 +5,9 @@ import { ethers, network } from "hardhat";
 import {
   PROPOSAL_DESCRIPTION_EXAMPLE,
   proposalsFile,
-  VOTING_PERIOD,
+  deploymentsFile,
   developmentChains,
+  VOTING_PERIOD,
   STORE_FUNC,
   STORE_VALUE,
   VOTING_DELAY,
@@ -19,14 +20,14 @@ export async function propose(
   functionToCall: string,
   proposalDescription: string
 ) {
+  const content = fs.readFileSync(deploymentsFile, "utf8");
+  const data = JSON.parse(content);
+
   const governor = await ethers.getContractAt(
     "OrganizationGovernance",
-    "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"
+    data.organizationGovernance
   );
-  const box = await ethers.getContractAt(
-    "Box",
-    "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE"
-  );
+  const box = await ethers.getContractAt("Box", data.box);
 
   const encodeFunctionCall = box.interface.encodeFunctionData(
     functionToCall,
@@ -55,7 +56,7 @@ export async function propose(
   if (developmentChains.includes(network.name)) {
     await moveBlocks(VOTING_DELAY + 1);
   }
-
+  console.log(`Proposal receipt: ${proposeReceipt}`);
   const proposalId = proposeReceipt.events[0].args.proposalId;
   console.log(`Proposed with proposal ID:\n  ${proposalId}`);
 

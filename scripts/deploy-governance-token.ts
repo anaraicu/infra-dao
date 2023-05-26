@@ -3,6 +3,7 @@ import { ContractFactory } from "ethers";
 import { GovernanceToken } from "../typechain-types";
 import * as fs from "fs";
 import { deploymentsFile } from "../helper-config";
+
 export async function deployGovernanceToken() {
   const governanceTokenFactory: ContractFactory =
     await ethers.getContractFactory("GovernanceToken");
