@@ -53,7 +53,7 @@ contract TokenBasedGovernance is Governance {
         if (amount == 1) {
             fee = 0; // free vote
         } else {
-            fee = SafeMathUpgradeable.mul(voteWeight, 0.0001 ether);
+            fee = voteWeight * (0.0001 ether);
         }
         require(
             voteWeight <= nWeight,
@@ -63,14 +63,8 @@ contract TokenBasedGovernance is Governance {
             msg.value >= fee,
             "TokenQuorumGovernance::castVote: You need to pay the fee for casting more VP."
         );
-        proposals[proposalId].votes = SafeMathUpgradeable.add(
-            proposals[proposalId].votes,
-            amount
-        );
-        proposals[proposalId].budget = SafeMathUpgradeable.add(
-            proposals[proposalId].budget,
-            msg.value
-        );
+        proposals[proposalId].votes = proposals[proposalId].votes + amount;
+        proposals[proposalId].budget = proposals[proposalId].budget + msg.value;
 
         _countVote(proposalId, msg.sender, support, voteWeight, "");
         proposals[proposalId].voters.push(msg.sender);

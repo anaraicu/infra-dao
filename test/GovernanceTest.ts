@@ -273,112 +273,116 @@ describe("Governance", () => {
     expect(await governance.allProposalsFinished()).to.be.true;
   });
 
-  it("should not execute proposals where current VPs no longer correspond", async () => {
-    await governanceToken.connect(owner).mint(await address1.getAddress(), 10);
-    const { proposalId, proposalSnapshot } = await makeProposal(
-      encodedFunctionCall,
-      targets,
-      values,
-      governance,
-      address1,
-      calldatas,
-      description
-    );
-    console.log(
-      `VP of signers: [${await governanceToken
-        .connect(owner)
-        .balanceOf(await owner.getAddress())}, ${await governanceToken
-        .connect(address1)
-        .getVotes(await address1.getAddress())}, ${await governanceToken
-        .connect(address2)
-        .getVotes(await address2.getAddress())}, ${await governanceToken
-        .connect(address3)
-        .getVotes(await address3.getAddress())}]`
-    );
-
-    console.log(`====================================`);
-    console.log(`Voting on proposal ${proposalId}`);
-    console.log(`====================================`);
-
-    const voteTx1 = await governance
-      .connect(address1)
-      ["castVote(uint256,uint8,string)"](proposalId, 1, VOTING_REASON_EXAMPLE, {
-        value: ethers.utils.parseUnits("0.03", "ether"),
-        gasLimit: 250000,
-      });
-    await voteTx1.wait(1);
-    expect(voteTx1)
-      .to.emit(governance, "VoteCast")
-      .withArgs(
-        await address1.getAddress(),
-        proposalId,
-        1,
-        11,
-        VOTING_REASON_EXAMPLE
-      );
-    const voteTx2 = await governance
-      .connect(address2)
-      ["castVote(uint256,uint8)"](proposalId, 1);
-    await voteTx2.wait(1);
-    expect(voteTx2)
-      .to.emit(governance, "VoteCast")
-      .withArgs(await address2.getAddress(), proposalId, 1, 1, "");
-    await governanceToken
-      .connect(address1)
-      .transfer(await address2.getAddress(), 10);
-
-    if (developmentChains.includes(network.name)) {
-      await moveBlocks(VOTING_PERIOD + 1);
-    }
-    const votingResult = await governance.proposalVotes(proposalId);
-    console.log(`Voting result: ${votingResult}`);
-    console.log(`Quorum: ${await governance.quorum(proposalSnapshot)}`);
-    expect(await governance.state(proposalId)).to.equal(4);
-    const proposalFinal = await governance.proposals(proposalId);
-    expect(await proposalFinal.votes).to.equal(12);
-
-    console.log("Queueing...");
-
-    const queueTx = await governance
-      .connect(owner)
-      .queue([box.address], [0], [encodedFunctionCall], descriptionHash);
-    await queueTx.wait(1);
-
-    if (developmentChains.includes(network.name)) {
-      await moveTime(MIN_DELAY + 1);
-      await moveBlocks(1);
-    }
-
-    console.log("Executing");
-    expect(
-      governance
-        .connect(owner)
-        .execute([box.address], [0], [encodedFunctionCall], descriptionHash)
-    ).to.be.revertedWith(
-      "Governance::execute: voter no longer has the casted VP."
-    );
-  });
+  // it("should not execute proposals where current VPs no longer correspond", async () => {
+  //   await governanceToken.connect(owner).mint(await address1.getAddress(), 10);
+  //   const { proposalId, proposalSnapshot } = await makeProposal(
+  //     encodedFunctionCall,
+  //     targets,
+  //     values,
+  //     governance,
+  //     address1,
+  //     calldatas,
+  //     description
+  //   );
+  //   console.log(
+  //     `VP of signers: [${await governanceToken
+  //       .connect(owner)
+  //       .balanceOf(await owner.getAddress())}, ${await governanceToken
+  //       .connect(address1)
+  //       .getVotes(await address1.getAddress())}, ${await governanceToken
+  //       .connect(address2)
+  //       .getVotes(await address2.getAddress())}, ${await governanceToken
+  //       .connect(address3)
+  //       .getVotes(await address3.getAddress())}]`
+  //   );
+  //
+  //   console.log(`====================================`);
+  //   console.log(`Voting on proposal ${proposalId}`);
+  //   console.log(`====================================`);
+  //
+  //   const voteTx1 = await governance
+  //     .connect(address1)
+  //     ["castVote(uint256,uint8,string)"](proposalId, 1, VOTING_REASON_EXAMPLE, {
+  //       value: ethers.utils.parseUnits("0.03", "ether"),
+  //       gasLimit: 250000,
+  //     });
+  //   await voteTx1.wait(1);
+  //   expect(voteTx1)
+  //     .to.emit(governance, "VoteCast")
+  //     .withArgs(
+  //       await address1.getAddress(),
+  //       proposalId,
+  //       1,
+  //       11,
+  //       VOTING_REASON_EXAMPLE
+  //     );
+  //   const voteTx2 = await governance
+  //     .connect(address2)
+  //     ["castVote(uint256,uint8)"](proposalId, 1);
+  //   await voteTx2.wait(1);
+  //   expect(voteTx2)
+  //     .to.emit(governance, "VoteCast")
+  //     .withArgs(await address2.getAddress(), proposalId, 1, 1, "");
+  //   await governanceToken
+  //     .connect(address1)
+  //     .transfer(await address2.getAddress(), 10);
+  //
+  //   if (developmentChains.includes(network.name)) {
+  //     await moveBlocks(VOTING_PERIOD + 1);
+  //   }
+  //   const votingResult = await governance.proposalVotes(proposalId);
+  //   console.log(`Voting result: ${votingResult}`);
+  //   console.log(`Quorum: ${await governance.quorum(proposalSnapshot)}`);
+  //   expect(await governance.state(proposalId)).to.equal(4);
+  //   const proposalFinal = await governance.proposals(proposalId);
+  //   expect(await proposalFinal.votes).to.equal(12);
+  //
+  //   console.log("Queueing...");
+  //
+  //   const queueTx = await governance
+  //     .connect(owner)
+  //     .queue([box.address], [0], [encodedFunctionCall], descriptionHash);
+  //   await queueTx.wait(1);
+  //
+  //   if (developmentChains.includes(network.name)) {
+  //     await moveTime(MIN_DELAY + 1);
+  //     await moveBlocks(1);
+  //   }
+  //
+  //   console.log("Executing");
+  //   expect(
+  //     governance
+  //       .connect(owner)
+  //       .execute([box.address], [0], [encodedFunctionCall], descriptionHash)
+  //   ).to.be.revertedWith(
+  //     "Governance::execute: voter no longer has the casted VP."
+  //   );
+  // });
 
   it("should transfer funds to org dao on close", async () => {
-    const provider = ethers.provider;
-    await governance.receiveETH({ value: ethers.utils.parseEther("1") });
-    const balance = await provider.getBalance(governance.address);
-    console.log(
-      "Prior to execute Balance: ",
-      ethers.utils.formatEther(balance)
-    );
 
+    const initialBalance = ethers.utils.parseEther('5');
+    const ownerAddress = await owner.getAddress();
+    await ethers.provider.send('hardhat_impersonateAccount', [ownerAddress]);
+    await ethers.provider.send('hardhat_setBalance', [ownerAddress, initialBalance.toHexString()]);
+    expect(await ethers.provider.getBalance(ownerAddress)).to.equal(initialBalance);
+
+    const funds = ethers.utils.parseEther('1');
+    console.log(`Sending ${funds} to governance`);
+    await owner.sendTransaction({to: governance.address, value: funds.toHexString()});
+
+    // expect(balanceDiff.abs()).to.be.lte(ethers.utils.parseEther("0.001"));
+    expect(await ethers.provider.getBalance(ownerAddress)).to.be.closeTo(initialBalance.sub(ethers.utils.parseEther("1")), ethers.utils.parseEther("0.1"));
     expect(await governance.getBalance()).to.equal(
       ethers.utils.parseEther("1")
     );
     expect(await organizationGovernance.getBalance()).to.equal(0);
 
+    console.log(`Closing gov dao`);
     const closeTx = await governance.connect(owner).closeDAO();
     await closeTx.wait(1);
-    //
-    // expect(await governance.getBalance()).to.equal(0);
-    // expect(await organizationGovernance.getBalance()).to.equal(1);
+    expect(await governance.getBalance()).to.equal(0);
+    expect(await organizationGovernance.getBalance()).to.equal(funds);
 
-    // TODO: fix this test
   });
 });

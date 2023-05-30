@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/governance/GovernorUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorSettingsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorCountingSimpleUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesQuorumFractionUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorTimelockControlUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-//import "@openzeppelin/contracts-upgradeable/contracts/governance/utils/IVotesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "hardhat/console.sol";
 
 contract OrganizationGovernance is
@@ -107,7 +103,7 @@ contract OrganizationGovernance is
     }
 
     // The following functions are overrides required by Solidity.
-    function receiveETH() public payable {}
+    receive() external payable override {}
 
     function getBalance() public view returns (uint256) {
         return address(this).balance;
@@ -158,7 +154,7 @@ contract OrganizationGovernance is
     }
 
     function setQuorumNumeric(uint256 _quorum) public virtual daoOwnerOnly {
-        _updateQuorumNumerator(SafeMathUpgradeable.mul(_quorum, 100));
+        _updateQuorumNumerator(_quorum * 100);
     }
 
     function state(
@@ -253,32 +249,7 @@ contract OrganizationGovernance is
         daoOwnerOnly
         returns (uint256)
     {
-        uint256 proposalId = hashProposal(
-            targets,
-            values,
-            calldatas,
-            descriptionHash
-        );
-
-        uint256 votersLength = proposals[proposalId].voters.length;
-        for (uint256 i = 0; i < votersLength; i++) {
-            address voter = proposals[proposalId].voters[i];
-            uint256 nVotes = proposals[proposalId].votesByMember[voter];
-            require(
-                getVotes(voter, proposalDeadline(proposalId)) >= nVotes,
-                "OrganizationGovernance::execute: voter does not have the cast voting power to execute proposal."
-            );
-        }
-        require(
-            proposals[proposalId].budget <= (getBalance() + msg.value),
-            "OrganizationGovernance::execute: budget requested exceeds funds available."
-        );
-
-        address payable receiver = payable(proposals[proposalId].proposer);
-        // Transfer funds from token contract to proposer
-        receiver.transfer(proposals[proposalId].budget);
-        super.execute(targets, values, calldatas, descriptionHash);
-        return proposalId;
+        return super.execute(targets, values, calldatas, descriptionHash);
     }
 
     function _execute(
@@ -347,14 +318,8 @@ contract OrganizationGovernance is
             "OrganizationGovernance::castVote: voter does not have enough voting power"
         );
 
-        proposals[proposalId].votes = SafeMathUpgradeable.add(
-            proposals[proposalId].votes,
-            voteWeight
-        );
-        proposals[proposalId].budget = SafeMathUpgradeable.add(
-            proposals[proposalId].budget,
-            msg.value
-        );
+        proposals[proposalId].votes = proposals[proposalId].votes + voteWeight;
+        proposals[proposalId].budget = proposals[proposalId].budget + msg.value;
 
         _countVote(proposalId, msg.sender, support, voteWeight, "");
         proposals[proposalId].voters.push(msg.sender);

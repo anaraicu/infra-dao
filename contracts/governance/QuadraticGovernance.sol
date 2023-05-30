@@ -64,12 +64,12 @@ contract QuadraticGovernance is Governance {
         );
 
         uint256 nWeight = getVotes(msg.sender, proposalSnapshot(proposalId));
-        uint256 voteWeight = SafeMathUpgradeable.mul(amount, amount);
+        uint256 voteWeight = amount ** 2;
         uint256 fee;
         if (amount == 1) {
             fee = 0;
         } else {
-            fee = SafeMathUpgradeable.mul(voteWeight, 0.0001 ether);
+            fee = voteWeight * (0.0001 ether);
         }
         require(
             voteWeight <= nWeight,
@@ -80,14 +80,8 @@ contract QuadraticGovernance is Governance {
             "QuadraticGovernance: amount sent does not cover fee"
         );
 
-        proposals[proposalId].votes = SafeMathUpgradeable.add(
-            proposals[proposalId].votes,
-            amount
-        );
-        proposals[proposalId].budget = SafeMathUpgradeable.add(
-            proposals[proposalId].budget,
-            msg.value
-        );
+        proposals[proposalId].votes = proposals[proposalId].votes + amount;
+        proposals[proposalId].budget = proposals[proposalId].budget + msg.value;
 
         _countVote(proposalId, msg.sender, support, voteWeight, "");
         proposals[proposalId].voters.push(msg.sender);

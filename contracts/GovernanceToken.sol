@@ -5,7 +5,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 
 contract GovernanceToken is ERC20VotesUpgradeable {
     // 18 decimals as default
@@ -26,7 +25,7 @@ contract GovernanceToken is ERC20VotesUpgradeable {
 
     function mint(address to, uint256 amount) public {
         require(msg.sender == owner, "only owner can mint");
-        _mint(to, SafeMathUpgradeable.mul(amount, amount));
+        _mint(to, amount);
     }
 
     function delegates(

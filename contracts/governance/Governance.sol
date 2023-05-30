@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/governance/GovernorUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorSettingsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorCountingSimpleUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesQuorumFractionUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorTimelockControlUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-//import "@openzeppelin/contracts-upgradeable/contracts/governance/utils/IVotesUpgradeable.sol";
 import "hardhat/console.sol";
 
 contract Governance is
@@ -97,17 +93,7 @@ contract Governance is
     }
 
     // The following functions are overrides required by Solidity.
-
-    function receiveETH() public payable {}
-
-    function votingDelay()
-        public
-        view
-        override(IGovernorUpgradeable, GovernorSettingsUpgradeable)
-        returns (uint256)
-    {
-        return super.votingDelay();
-    }
+    receive() external payable override {}
 
     function votingPeriod()
         public
@@ -200,32 +186,7 @@ contract Governance is
         organizationOnly
         returns (uint256)
     {
-        uint256 proposalId = hashProposal(
-            targets,
-            values,
-            calldatas,
-            descriptionHash
-        );
-
-        uint256 votersLength = proposals[proposalId].voters.length;
-        for (uint256 i = 0; i < votersLength; i++) {
-            address voter = proposals[proposalId].voters[i];
-            uint256 nVotes = proposals[proposalId].votesByMember[voter];
-            require(
-                getVotes(voter, proposalDeadline(proposalId)) >= nVotes,
-                "Governance::execute: voter no longer has the casted VP."
-            );
-        }
-        require(
-            proposals[proposalId].budget <= (getBalance() + msg.value),
-            "Governance::execute: budget requested exceeds funds available."
-        );
-
-        address payable receiver = payable(proposals[proposalId].proposer);
-        // Transfer funds from token contract to proposer
-        receiver.transfer(proposals[proposalId].budget);
-        super.execute(targets, values, calldatas, descriptionHash);
-        return proposalId;
+        return super.execute(targets, values, calldatas, descriptionHash);
     }
 
     function _execute(
@@ -312,14 +273,8 @@ contract Governance is
             "Governance::castVote: voter does not have enough voting power"
         );
 
-        proposals[proposalId].votes = SafeMathUpgradeable.add(
-            proposals[proposalId].votes,
-            nWeight
-        );
-        proposals[proposalId].budget = SafeMathUpgradeable.add(
-            proposals[proposalId].budget,
-            msg.value
-        );
+        proposals[proposalId].votes = proposals[proposalId].votes + nWeight;
+        proposals[proposalId].budget = proposals[proposalId].budget + msg.value;
 
         _countVote(proposalId, msg.sender, support, nWeight, "");
         proposals[proposalId].voters.push(msg.sender);
@@ -360,18 +315,17 @@ contract Governance is
     }
 
     function closeDAO() public organizationOnly returns (uint256) {
+        // Sending raised funds to the organization address
         require(
             allProposalsFinished(),
             "Governance::closeDAO: not all proposals are finished"
         );
 
-        console.log("balance", address(this).balance);
-        console.log("organizationAddress", organizationAddress);
-        (bool res, ) = payable(msg.sender).call{
+        (bool res, ) = payable(organizationAddress).call{
             value: address(this).balance,
             gas: 1000000
         }("");
-        console.log("res", res);
+        require (res, "Governance::closeDAO: failed to send funds to the organization address");
         return address(this).balance;
     }
 }

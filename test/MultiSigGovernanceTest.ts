@@ -126,6 +126,7 @@ describe("MultiSigGovernance", () => {
 
     multiSigners = [await address1.getAddress(), await address2.getAddress()];
     await multiSigGovernance.setSigners(multiSigners);
+    await multiSigGovernance.addSigner(await address4.getAddress());
 
     // Add new member with VP
     await membershipNFT.mint(
@@ -140,18 +141,18 @@ describe("MultiSigGovernance", () => {
   it(`should be able to set required signatures correctly`, async () => {
     expect(await multiSigGovernance.requiredSignatures()).to.equal(4);
     const setRequiredSignaturesTx =
-      await multiSigGovernance.setRequiredSignatures(2);
-    expect(await multiSigGovernance.requiredSignatures()).to.equal(2);
+      await multiSigGovernance.setRequiredSignatures(3);
+    expect(await multiSigGovernance.requiredSignatures()).to.equal(3);
   });
 
   it(`should be able to set signers correctly`, async () => {
-    const result = await multiSigGovernance.signers();
-    expect(result[0]).to.equal(multiSigners[0]);
-    expect(result[1]).to.equal(multiSigners[1]);
+    expect(await multiSigGovernance.getSignerAt(0)).to.equal(multiSigners[0]);
+    expect(await multiSigGovernance.getSignerAt(1)).to.equal(multiSigners[1]);
   });
 
-  it("should pass proposal if signers vote", async () => {
+  it("should pass proposal if signers vote for", async () => {
     // Test with all addresses as members
+    await multiSigGovernance.setRequiredSignatures(2);
     const { proposalId, proposalSnapshot } = await makeProposal(
       encodedFunctionCall,
       targets,
@@ -172,16 +173,11 @@ describe("MultiSigGovernance", () => {
       ["castVote(uint256,uint8)"](proposalId, 1);
     await voteTx2.wait(1);
 
-    const voteTx4 = await multiSigGovernance
-      .connect(address4)
-      ["castVote(uint256,uint8)"](proposalId, 1);
-    await voteTx4.wait(1);
-
     expect(
       multiSigGovernance
         .connect(address3)
         ["castVote(uint256,uint8)"](proposalId, 1)
-    ).to.be.revertedWith("Governance::membersOnly: not a member");
+    ).to.be.revertedWith("MultiSigGovernance::signersOnly: not a signer");
     // VOTING POWER implementation
 
     if (developmentChains.includes(network.name)) {
@@ -189,7 +185,7 @@ describe("MultiSigGovernance", () => {
     }
 
     const proposalFinal = await multiSigGovernance.proposals(proposalId);
-    expect(proposalFinal.votes).equal(3);
+    expect(proposalFinal.votes).equal(2);
     expect(proposalFinal.budget).equal(0);
     expect(await multiSigGovernance.state(proposalId)).to.equal(4);
 
@@ -215,6 +211,9 @@ describe("MultiSigGovernance", () => {
   });
 
   it("should not pass proposal if not enough signers vote", async () => {
+    console.log("Required signatures: ", await multiSigGovernance.requiredSignatures());
+
+    await multiSigGovernance.setRequiredSignatures(3);
     // Test with all addresses as members
     const { proposalId, proposalSnapshot } = await makeProposal(
       encodedFunctionCall,
@@ -233,16 +232,21 @@ describe("MultiSigGovernance", () => {
 
     // address2 does not vote
 
+    const voteTx2 = await multiSigGovernance
+      .connect(address2)
+      ["castVote(uint256,uint8)"](proposalId, 0);
+    await voteTx2.wait(1);
+
     const voteTx4 = await multiSigGovernance
-      .connect(address4)
-      ["castVote(uint256,uint8)"](proposalId, 1);
+        .connect(address4)
+        ["castVote(uint256,uint8)"](proposalId, 1);
     await voteTx4.wait(1);
 
     expect(
       multiSigGovernance
         .connect(address3)
         ["castVote(uint256,uint8)"](proposalId, 1)
-    ).to.be.revertedWith("Governance::membersOnly: not a member");
+    ).to.be.revertedWith("MultiSigGovernance::signersOnly: not a signer");
     // VOTING POWER implementation
 
     if (developmentChains.includes(network.name)) {
@@ -250,9 +254,9 @@ describe("MultiSigGovernance", () => {
     }
 
     const proposalFinal = await multiSigGovernance.proposals(proposalId);
-    expect(proposalFinal.votes).equal(2);
+    expect(proposalFinal.votes).equal(3);
     expect(proposalFinal.budget).equal(0);
-    expect(await multiSigGovernance.state(proposalId)).to.equal(4);
+    expect(await multiSigGovernance.state(proposalId)).to.equal(4); // DEFEATED
 
     console.log("Queueing...");
     const queueTx = await multiSigGovernance

@@ -5,19 +5,29 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
+import "hardhat/console.sol";
 
 // A box contract for storing governor and mapping the admins according to their NFT posession
 contract Box is OwnableUpgradeable {
     address public governor;
     mapping(address => bool) public admins;
-    uint256 public value;
+    uint256 public value; // trivial value to store in the contract
 
     mapping(bytes32 => address) public subDAOs;
     address[] public subDAOAddresses;
+    address public originalOwner;
 
     event getGas(uint256 gas);
     event ValueChanged(uint256 newValue);
     event SubDAOAdded(bytes32 subDAOId, address subDAOAddress);
+
+    modifier ownersOnly() {
+        require(
+            msg.sender == originalOwner || msg.sender == owner(),
+            "Box::originalOwnerOnly: Only original owner can call this function"
+        );
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -27,14 +37,23 @@ contract Box is OwnableUpgradeable {
     function initialize(address _governor) public initializer {
         __Ownable_init();
         governor = _governor;
+
+        originalOwner = msg.sender;
         _transferOwnership(_governor);
     }
 
-    function registerSubDAO(bytes32 id, address subDAOImplementation) public {
+    function registerSubDAO(
+        bytes32 id,
+        address subDAOImplementation
+    ) public ownersOnly {
+        require(
+            subDAOs[id] == address(0),
+            "Box::registerSubDAO: SubDAO already registered"
+        );
         subDAOs[id] = subDAOImplementation;
     }
 
-    function deploySubDAO(bytes32 id) external returns (address) {
+    function deploySubDAO(bytes32 id) external onlyOwner returns (address) {
         address deployed = ClonesUpgradeable.clone(subDAOs[id]);
         emit SubDAOAdded(id, deployed);
         subDAOAddresses.push(deployed);
@@ -69,14 +88,6 @@ contract Box is OwnableUpgradeable {
 
     function isAdmin(address _admin) public view returns (bool) {
         return admins[_admin];
-    }
-
-    /**
-     * @dev Withdraws all funds from the contract.
-     */
-    function withdraw(address _receiver) public onlyOwner {
-        address payable receiverPayable = payable(_receiver);
-        receiverPayable.transfer(address(this).balance);
     }
 
     /**

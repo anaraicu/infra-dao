@@ -116,6 +116,11 @@ describe("BoxCreateSubDAOUnitTests", function () {
       { name: "multiSig", factory: MultiSigGovernance__factory },
     ];
 
+    console.log(`====================================`);
+    console.log(timelock.address);
+    console.log(await owner.getAddress());
+    console.log(`====================================`);
+
     for (const { name, factory } of implementations) {
       const governanceFactory = new factory(owner);
       const governance = await governanceFactory.deploy();
@@ -197,9 +202,12 @@ describe("BoxCreateSubDAOUnitTests", function () {
     expect(await proposalFinal.votes).to.equal(2);
 
     console.log("Queueing...");
-    const queueTx = await organizationGovernance
-      .connect(owner)
-      .queue([box.address], [0], [encodedFunctionCall], descriptionHash);
+    const queueTx = await organizationGovernance.queue(
+      [box.address],
+      [0],
+      [encodedFunctionCall],
+      descriptionHash
+    );
     await queueTx.wait(1);
 
     if (developmentChains.includes(network.name)) {
@@ -208,9 +216,12 @@ describe("BoxCreateSubDAOUnitTests", function () {
     }
 
     console.log("Executing");
-    const executeTx = await organizationGovernance
-      .connect(owner)
-      .execute([box.address], [0], [encodedFunctionCall], descriptionHash);
+    const executeTx = await organizationGovernance.execute(
+      [box.address],
+      [0],
+      [encodedFunctionCall],
+      descriptionHash
+    );
     await executeTx.wait(1);
 
     console.log(`SubDAO deployed at ${await box.retrieveLastDeployed()}`);

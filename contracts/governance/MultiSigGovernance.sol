@@ -3,10 +3,21 @@ pragma solidity ^0.8.0;
 
 // MultiSigGovernance is extending Governance class with MultiSignature voting
 import "./Governance.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract MultiSigGovernance is Governance {
-    address[] _signers;
-    uint256 _requiredSignatures;
+    using EnumerableSet for EnumerableSet.AddressSet;
+
+    uint256 public requiredSignatures;
+    EnumerableSet.AddressSet private signers;
+
+    modifier signersOnly {
+        require(
+            isSigner(msg.sender),
+            "MultiSigGovernance::signersOnly: not a signer"
+        );
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -31,15 +42,7 @@ contract MultiSigGovernance is Governance {
             _proposalThreshold,
             _organizationAddress
         );
-        _requiredSignatures = 4;
-    }
-
-    function requiredSignatures() public view returns (uint256) {
-        return _requiredSignatures;
-    }
-
-    function setRequiredSignatures(uint256 amount) public organizationOnly {
-        _requiredSignatures = amount;
+        requiredSignatures = 4;
     }
 
     function _execute(
@@ -50,18 +53,15 @@ contract MultiSigGovernance is Governance {
         bytes32 descriptionHash
     ) internal override {
         uint256 signs = 0;
-        uint256 signersLength = _signers.length;
+        uint256 signersLength = getSignersLength();
         ///
-        for (uint256 i = 0; i < signersLength; i++) {
-            if (hasVoted(proposalId, _signers[uint256(i)])) {
+        for (uint256 i = 0; i < signersLength && signs < requiredSignatures; i++) {
+            if (proposals[proposalId].votesByMember[signers.at(i)] == 1) {
                 signs++;
-            }
-            if (signs >= _requiredSignatures) {
-                break;
             }
         }
         require(
-            signs >= _requiredSignatures || signs == signersLength,
+            signs >= requiredSignatures || signs == signersLength,
             "MultiSigGovernance: not enough signatures"
         );
         super._execute(proposalId, targets, values, calldatas, descriptionHash);
@@ -71,7 +71,7 @@ contract MultiSigGovernance is Governance {
         uint256 proposalId,
         uint8 support,
         string memory reason
-    ) public payable override membersOnly returns (uint256) {
+    ) public payable override signersOnly returns (uint256) {
         require(
             state(proposalId) == ProposalState.Active,
             "MultiSigGovernance::castVote: voting is closed"
@@ -86,13 +86,10 @@ contract MultiSigGovernance is Governance {
             nWeight >= amount,
             "MultiSigGovernance::castVote: not enough voting power"
         );
-        proposals[proposalId].votes = SafeMathUpgradeable.add(
-            proposals[proposalId].votes,
-            amount
-        );
+        proposals[proposalId].votes = proposals[proposalId].votes + amount;
         proposals[proposalId].budget = 0;
         _countVote(proposalId, msg.sender, support, amount, "");
-        proposals[proposalId].votesByMember[msg.sender] = amount;
+        proposals[proposalId].votesByMember[msg.sender] = support;
         emit VoteCast(msg.sender, proposalId, support, amount, reason);
         return amount;
     }
@@ -100,25 +97,45 @@ contract MultiSigGovernance is Governance {
     function castVote(
         uint256 proposalId,
         uint8 support
-    ) public override membersOnly returns (uint256) {
+    ) public override signersOnly returns (uint256) {
         return castVote(proposalId, support, "");
     }
 
-    function signers() public view returns (address[] memory) {
-        return _signers;
-    }
-
     function setSigners(address[] memory addresses) public organizationOnly {
-        _signers = addresses;
+        for (uint256 i = 0; i < addresses.length; i++) {
+            EnumerableSet.add(signers, addresses[i]);
+        }
     }
 
-    function isSigner(address account) public view returns (bool) {
-        uint256 signersLength = _signers.length;
-        for (uint256 i = 0; i < signersLength; i++) {
-            if (_signers[i] == account) {
-                return true;
-            }
+    function addSigner(address addr) public organizationOnly {
+        EnumerableSet.add(signers, addr);
+    }
+
+    function removeSigner(address addr) public organizationOnly {
+        EnumerableSet.remove(signers, addr);
+    }
+
+    function getSigners() public view returns (address[] memory) {
+        address[] memory addresses = new address[](EnumerableSet.length(signers));
+        for (uint256 i = 0; i < EnumerableSet.length(signers); i++) {
+            addresses[i] = EnumerableSet.at(signers, i);
         }
-        return false;
+        return addresses;
+    }
+
+    function isSigner(address addr) public view returns (bool) {
+        return EnumerableSet.contains(signers, addr);
+    }
+
+    function getSignersLength() public view returns (uint256) {
+        return EnumerableSet.length(signers);
+    }
+
+    function getSignerAt(uint256 index) public view returns (address) {
+        return EnumerableSet.at(signers, index);
+    }
+
+    function setRequiredSignatures(uint256 amount) public organizationOnly {
+        requiredSignatures = amount;
     }
 }
