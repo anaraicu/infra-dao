@@ -14,3 +14,5 @@ export const DEFAULT_VOTING_PERIOD = 7200; // 1 day
 export const proposalsFile = "proposals.json";
 export const deploymentsFile = "deployments.json";
 export const developmentChains = ["hardhat", "localhost"];
+export const BASE_URI =
+  "https://bafkreigguxuphkzs7qis7y2oxn3wzwq7w3ipfoojryy52he4rq2xhy6bk4.ipfs.nftstorage.link/";

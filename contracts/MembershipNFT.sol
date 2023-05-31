@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155BurnableUpgradeable.sol";
+import "hardhat/console.sol";
 
 contract MembershipNFT is
     Initializable,
@@ -14,6 +15,7 @@ contract MembershipNFT is
 {
     string public name;
     string public symbol;
+    bool public reinitialized;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -29,13 +31,31 @@ contract MembershipNFT is
         _mint(msg.sender, 0, _initialSupply, "");
         name = "MembershipNFT";
         symbol = "MEM";
+        reinitialized = false;
+    }
+
+    function reinitialize(
+        string memory _uri,
+        uint256 _initialSupply
+    ) public onlyOwner {
+        require(
+            !reinitialized,
+            "MemershipNFT::reinitialize:already reinitialized"
+        );
+        reinitialized = true;
+        __ERC1155_init(_uri);
+        _mint(msg.sender, 0, _initialSupply, "");
     }
 
     function setURI(string memory newuri) public onlyOwner {
+        console.log("setURI");
+        console.log(newuri);
         _setURI(newuri);
+        console.log("setURI done");
+        console.log(super.uri(0));
     }
 
-    function uri() public view returns (string memory) {
+    function getURI() public view returns (string memory) {
         return super.uri(0);
     }
 

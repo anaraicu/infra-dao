@@ -53,7 +53,7 @@ contract Box is OwnableUpgradeable {
         subDAOs[id] = subDAOImplementation;
     }
 
-    function deploySubDAO(bytes32 id) external onlyOwner returns (address) {
+    function deploySubDAO(bytes32 id) external ownersOnly returns (address) {
         address deployed = ClonesUpgradeable.clone(subDAOs[id]);
         emit SubDAOAdded(id, deployed);
         subDAOAddresses.push(deployed);

@@ -211,7 +211,10 @@ describe("MultiSigGovernance", () => {
   });
 
   it("should not pass proposal if not enough signers vote", async () => {
-    console.log("Required signatures: ", await multiSigGovernance.requiredSignatures());
+    console.log(
+      "Required signatures: ",
+      await multiSigGovernance.requiredSignatures()
+    );
 
     await multiSigGovernance.setRequiredSignatures(3);
     // Test with all addresses as members
@@ -238,8 +241,8 @@ describe("MultiSigGovernance", () => {
     await voteTx2.wait(1);
 
     const voteTx4 = await multiSigGovernance
-        .connect(address4)
-        ["castVote(uint256,uint8)"](proposalId, 1);
+      .connect(address4)
+      ["castVote(uint256,uint8)"](proposalId, 1);
     await voteTx4.wait(1);
 
     expect(

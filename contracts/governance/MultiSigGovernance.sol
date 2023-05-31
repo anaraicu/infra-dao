@@ -11,7 +11,7 @@ contract MultiSigGovernance is Governance {
     uint256 public requiredSignatures;
     EnumerableSet.AddressSet private signers;
 
-    modifier signersOnly {
+    modifier signersOnly() {
         require(
             isSigner(msg.sender),
             "MultiSigGovernance::signersOnly: not a signer"
@@ -55,7 +55,11 @@ contract MultiSigGovernance is Governance {
         uint256 signs = 0;
         uint256 signersLength = getSignersLength();
         ///
-        for (uint256 i = 0; i < signersLength && signs < requiredSignatures; i++) {
+        for (
+            uint256 i = 0;
+            i < signersLength && signs < requiredSignatures;
+            i++
+        ) {
             if (proposals[proposalId].votesByMember[signers.at(i)] == 1) {
                 signs++;
             }
@@ -116,7 +120,9 @@ contract MultiSigGovernance is Governance {
     }
 
     function getSigners() public view returns (address[] memory) {
-        address[] memory addresses = new address[](EnumerableSet.length(signers));
+        address[] memory addresses = new address[](
+            EnumerableSet.length(signers)
+        );
         for (uint256 i = 0; i < EnumerableSet.length(signers); i++) {
             addresses[i] = EnumerableSet.at(signers, i);
         }

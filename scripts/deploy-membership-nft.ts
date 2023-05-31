@@ -22,12 +22,23 @@ export async function deployMembershipNFT(uri: string, initialSupply: number) {
   const data = JSON.parse(content);
 
   data.membershipNFT = membershipNFT.address;
+
+  const mem = (await ethers.getContractAt(
+    "MembershipNFT",
+    data.membershipNFT
+  )) as MembershipNFT;
+  console.log(mem.address);
+  console.log(mem.getURI());
+
   // Update deployments with new membershipNFT address
   fs.writeFileSync(deploymentsFile, JSON.stringify(data, null, 2));
   console.log("Updated deployments.json file successfully.");
 }
 
-deployMembershipNFT("uri", 10).catch((error) => {
+deployMembershipNFT(
+  "https://bafkreigguxuphkzs7qis7y2oxn3wzwq7w3ipfoojryy52he4rq2xhy6bk4.ipfs.nftstorage.link/",
+  10
+).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

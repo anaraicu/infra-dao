@@ -360,19 +360,29 @@ describe("Governance", () => {
   // });
 
   it("should transfer funds to org dao on close", async () => {
-
-    const initialBalance = ethers.utils.parseEther('5');
+    const initialBalance = ethers.utils.parseEther("5");
     const ownerAddress = await owner.getAddress();
-    await ethers.provider.send('hardhat_impersonateAccount', [ownerAddress]);
-    await ethers.provider.send('hardhat_setBalance', [ownerAddress, initialBalance.toHexString()]);
-    expect(await ethers.provider.getBalance(ownerAddress)).to.equal(initialBalance);
+    await ethers.provider.send("hardhat_impersonateAccount", [ownerAddress]);
+    await ethers.provider.send("hardhat_setBalance", [
+      ownerAddress,
+      initialBalance.toHexString(),
+    ]);
+    expect(await ethers.provider.getBalance(ownerAddress)).to.equal(
+      initialBalance
+    );
 
-    const funds = ethers.utils.parseEther('1');
+    const funds = ethers.utils.parseEther("1");
     console.log(`Sending ${funds} to governance`);
-    await owner.sendTransaction({to: governance.address, value: funds.toHexString()});
+    await owner.sendTransaction({
+      to: governance.address,
+      value: funds.toHexString(),
+    });
 
     // expect(balanceDiff.abs()).to.be.lte(ethers.utils.parseEther("0.001"));
-    expect(await ethers.provider.getBalance(ownerAddress)).to.be.closeTo(initialBalance.sub(ethers.utils.parseEther("1")), ethers.utils.parseEther("0.1"));
+    expect(await ethers.provider.getBalance(ownerAddress)).to.be.closeTo(
+      initialBalance.sub(ethers.utils.parseEther("1")),
+      ethers.utils.parseEther("0.1")
+    );
     expect(await governance.getBalance()).to.equal(
       ethers.utils.parseEther("1")
     );
@@ -383,6 +393,5 @@ describe("Governance", () => {
     await closeTx.wait(1);
     expect(await governance.getBalance()).to.equal(0);
     expect(await organizationGovernance.getBalance()).to.equal(funds);
-
   });
 });

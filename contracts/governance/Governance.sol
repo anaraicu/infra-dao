@@ -325,7 +325,10 @@ contract Governance is
             value: address(this).balance,
             gas: 1000000
         }("");
-        require (res, "Governance::closeDAO: failed to send funds to the organization address");
+        require(
+            res,
+            "Governance::closeDAO: failed to send funds to the organization address"
+        );
         return address(this).balance;
     }
 }

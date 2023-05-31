@@ -3,6 +3,11 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
+import "./governance/TimeLock.sol";
+import "./governance/OrganizationGovernance.sol";
+import "./GovernanceToken.sol";
+import "./MembershipNFT.sol";
+import "./Box.sol";
 
 contract DAOFactory is OwnableUpgradeable {
     address public organizationGovernance;
@@ -30,24 +35,26 @@ contract DAOFactory is OwnableUpgradeable {
     }
 
     function initialize(
-        address _organizationGovernance,
         address _governanceToken,
         address _membershipNFT,
-        address _box,
-        address _timeLock
+        address _timeLock,
+        address _organizationGovernance,
+        address _box
     ) public initializer {
         __Ownable_init();
-        organizationGovernance = _organizationGovernance;
         governanceToken = _governanceToken;
         membershipNFT = _membershipNFT;
         box = _box;
+        organizationGovernance = _organizationGovernance;
         timeLock = _timeLock;
     }
 
-    function deployDAO()
-        public
-        returns (address, address, address, address, address)
-    {
+    function deployDAO(
+        string memory uri,
+        uint256 initialSupply,
+        uint256 votingPeriod,
+        uint256 quorumPercentage
+    ) public payable returns (address, address, address, address, address) {
         require(
             organizationGovernance != address(0),
             "organizationGovernance not registered"
@@ -64,22 +71,39 @@ contract DAOFactory is OwnableUpgradeable {
         newDAO.governanceToken = ClonesUpgradeable.clone(governanceToken);
         emit ClonedContractDeployed("governanceToken", newDAO.governanceToken);
 
+        console.log("newDAO.membershipNFT");
         newDAO.membershipNFT = ClonesUpgradeable.clone(membershipNFT);
         emit ClonedContractDeployed("membershipNFT", newDAO.membershipNFT);
+        MembershipNFT(newDAO.membershipNFT).initialize(uri, initialSupply);
 
+        console.log("newDAO.timeLock");
         newDAO.timeLock = ClonesUpgradeable.clone(timeLock);
         emit ClonedContractDeployed("timeLock", newDAO.timeLock);
+
+        console.log("newDAO.organizationGovernance");
 
         newDAO.organizationGovernance = ClonesUpgradeable.clone(
             organizationGovernance
         );
+        OrganizationGovernance(payable(newDAO.organizationGovernance))
+            .initialize(
+                GovernanceToken(newDAO.governanceToken),
+                MembershipNFT(newDAO.membershipNFT),
+                TimeLock(payable(newDAO.timeLock)),
+                votingPeriod,
+                quorumPercentage,
+                0
+            );
         emit ClonedContractDeployed(
             "organizationGovernance",
             newDAO.organizationGovernance
         );
 
+        console.log("newDAO.box");
+
         newDAO.box = ClonesUpgradeable.clone(box);
         emit ClonedContractDeployed("box", newDAO.box);
+        Box(newDAO.box).initialize(newDAO.timeLock);
 
         deployedDAOs.push(newDAO);
         emit DAODeployed(address(newDAO.box));
@@ -103,5 +127,9 @@ contract DAOFactory is OwnableUpgradeable {
 
     function getDAOCount() public view returns (uint256) {
         return deployedDAOs.length;
+    }
+
+    fallback() external {
+        revert();
     }
 }

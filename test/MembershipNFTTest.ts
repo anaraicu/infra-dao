@@ -37,7 +37,7 @@ describe("MembershipNFTUnitTests", function () {
   it("should have correct name, symbol, and URI", async function () {
     expect(await membershipNFT.name()).to.equal("MembershipNFT");
     expect(await membershipNFT.symbol()).to.equal("MEM");
-    expect(await membershipNFT["uri()"]()).to.equal(
+    expect(await membershipNFT.getURI()).to.equal(
       "https://bafybeihul6zsmbzyrgmjth3ynkmchepyvyhcwecn2yxc57ppqgpvr35zsq.ipfs.dweb.link/0.json"
     );
   });
@@ -45,7 +45,7 @@ describe("MembershipNFTUnitTests", function () {
   it("should allow owner to set the token URI", async function () {
     const newURI = "https://example.com/new/0.json";
     await membershipNFT.connect(owner).setURI(newURI);
-    expect(await membershipNFT["uri()"]()).to.equal(
+    expect(await membershipNFT.getURI()).to.equal(
       "https://example.com/new/0.json"
     );
   });
