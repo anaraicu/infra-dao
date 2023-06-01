@@ -18,7 +18,7 @@ export async function deployDaoFactory() {
       data.organizationGovernance,
       data.box,
     ],
-    { initializer: "initialize" }
+    { initializer: "initialize", kind: "transparent" }
   )) as DAOFactory;
   await daoFactory.deployed();
 

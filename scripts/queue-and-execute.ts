@@ -10,13 +10,20 @@ import {
 import { moveBlocks } from "../utils/move-blocks";
 import { moveTime } from "../utils/move-time";
 import fs from "fs";
+import { DAOFactory } from "../typechain-types";
 
 export async function queueAndExecute() {
   const content = fs.readFileSync(deploymentsFile, "utf8");
   const data = JSON.parse(content);
 
+  const daoFactory = (await ethers.getContractAt(
+    "DAOFactory",
+    data.daoFactory
+  )) as DAOFactory;
+  const count = (await daoFactory.getDAOCount()).toNumber();
+
   const args = [STORE_VALUE];
-  const box = await ethers.getContractAt("Box", data.box);
+  const box = await ethers.getContractAt("Box", data[count]["box"]);
   const encodedFunctionCall = box.interface.encodeFunctionData(
     STORE_FUNC,
     args
@@ -28,7 +35,7 @@ export async function queueAndExecute() {
 
   const governor = await ethers.getContractAt(
     "OrganizationGovernance",
-    data.organizationGovernance
+    data[count]["organizationGovernance"]
   );
 
   console.log("Queueing...");

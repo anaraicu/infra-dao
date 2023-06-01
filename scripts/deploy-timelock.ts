@@ -1,8 +1,9 @@
-import { ethers, upgrades } from "hardhat";
+import { ethers } from "hardhat";
 import { ContractFactory } from "ethers";
 import { TimeLock } from "../typechain-types";
 import * as fs from "fs";
 import { deploymentsFile, VOTING_DELAY } from "../helper-config";
+
 export async function deployTimeLock(minDelay: number) {
   const [deployer] = await ethers.getSigners();
   const deployerAddress = await deployer.getAddress();
@@ -10,11 +11,7 @@ export async function deployTimeLock(minDelay: number) {
   const timeLockFactory: ContractFactory = await ethers.getContractFactory(
     "TimeLock"
   );
-  const timeLock = (await upgrades.deployProxy(
-    timeLockFactory,
-    [minDelay, [], [], deployerAddress],
-    { initializer: "initialize" }
-  )) as TimeLock;
+  const timeLock = await timeLockFactory.deploy();
   await timeLock.deployed();
 
   console.log("Membership NFT deployed to:", timeLock.address);

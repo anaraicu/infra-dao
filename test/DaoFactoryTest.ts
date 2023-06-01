@@ -77,7 +77,7 @@ describe("DAOFactoryTest", function () {
           timelock.address,
           box.address,
         ],
-        { initializer: "initialize" }
+        { initializer: "initialize", kind: "transparent" }
       )) as DAOFactory;
 
       await daoFactory.deployed();
@@ -133,13 +133,6 @@ describe("DAOFactoryTest", function () {
         cloneBox
       )) as Box;
       console.log(await cloneMembershipNFTContract.getURI());
-
-      // console.log("cloneGovTokenContract.address", cloneGovTokenContract.address);
-      // console.log("cloneMembershipNFTContract.address", cloneMembershipNFTContract.address);
-      // console.log("cloneTimeLockContract.address", cloneTimeLockContract.address);
-      // console.log("cloneOrgGovContract.address", cloneOrgGovContract.address);
-      // console.log("cloneBoxContract.address", cloneBoxContract.address);
-      // console.log("uri", await cloneMembershipNFTContract.uri(0));
     });
   });
 });

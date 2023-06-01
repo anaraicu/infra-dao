@@ -81,26 +81,26 @@ export async function getTokenAndGovernanceContracts(
   const membershipNFT = (await upgrades.deployProxy(
     membershipNFTFactory,
     [uri, initialSupply],
-    { initializer: "initialize" }
+    { initializer: "initialize", kind: "transparent" }
   )) as MembershipNFT;
   await membershipNFT.deployed();
 
   const timeLockFactory: ContractFactory = await ethers.getContractFactory(
     "TimeLock"
   );
-  const timeLock = (await upgrades.deployProxy(
+  const timelock = (await upgrades.deployProxy(
     timeLockFactory,
     [VOTING_DELAY, [], [], await owner.getAddress()],
-    { initializer: "initialize" }
+    { initializer: "initialize", kind: "transparent" }
   )) as TimeLock;
-  await timeLock.deployed();
+  await timelock.deployed();
 
   const governanceTokenFactory: ContractFactory =
     await ethers.getContractFactory("GovernanceToken", owner);
   const governanceToken = (await upgrades.deployProxy(
     governanceTokenFactory,
     [],
-    { initializer: "initialize" }
+    { initializer: "initialize", kind: "transparent" }
   )) as GovernanceToken;
   await governanceToken.deployed();
 
@@ -111,24 +111,25 @@ export async function getTokenAndGovernanceContracts(
     [
       governanceToken.address,
       membershipNFT.address,
-      timeLock.address,
+      timelock.address,
       VOTING_PERIOD,
       QUORUM_PERCENTAGE,
       PROPOSAL_THRESHOLD,
     ],
-    { initializer: "initialize" }
+    { initializer: "initialize", kind: "transparent" }
   )) as OrganizationGovernance;
   await organizationGovernance.deployed();
 
   const boxFactory = await hre.ethers.getContractFactory("Box", owner);
-  const box = await upgrades.deployProxy(boxFactory, [timeLock.address], {
+  const box = await upgrades.deployProxy(boxFactory, [timelock.address], {
     initializer: "initialize",
+    kind: "transparent",
   });
   await box.deployed();
 
   return {
     membershipNFT,
-    timelock: timeLock,
+    timelock,
     governanceToken,
     organizationGovernance,
     box,

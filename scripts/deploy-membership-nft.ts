@@ -8,11 +8,7 @@ export async function deployMembershipNFT(uri: string, initialSupply: number) {
   const membershipNFTFactory: ContractFactory = await ethers.getContractFactory(
     "MembershipNFT"
   );
-  const membershipNFT = await upgrades.deployProxy(
-    membershipNFTFactory,
-    ["uri", initialSupply],
-    { initializer: "initialize" }
-  );
+  const membershipNFT = await membershipNFTFactory.deploy();
   await membershipNFT.deployed();
 
   console.log("Membership NFT deployed to:", membershipNFT.address);

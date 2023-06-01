@@ -27,11 +27,11 @@ contract MembershipNFT is
         uint256 _initialSupply
     ) public initializer {
         __ERC1155_init(_uri);
-        __Ownable_init();
-        _mint(msg.sender, 0, _initialSupply, "");
+        _mint(tx.origin, 0, _initialSupply, "");
         name = "MembershipNFT";
         symbol = "MEM";
         reinitialized = false;
+        _transferOwnership(tx.origin);
     }
 
     function reinitialize(
@@ -48,11 +48,7 @@ contract MembershipNFT is
     }
 
     function setURI(string memory newuri) public onlyOwner {
-        console.log("setURI");
-        console.log(newuri);
         _setURI(newuri);
-        console.log("setURI done");
-        console.log(super.uri(0));
     }
 
     function getURI() public view returns (string memory) {

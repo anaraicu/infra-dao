@@ -11,8 +11,21 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "hardhat/console.sol";
 
+interface IGovernance {
+    function initialize(
+        IVotesUpgradeable _token,
+        IERC1155Upgradeable _membershipToken,
+        TimelockControllerUpgradeable _timelock,
+        uint256 _votingPeriod,
+        uint256 _quorumPercentage,
+        uint256 _proposalThreshold,
+        address _organizationAddress
+    ) external;
+}
+
 contract Governance is
     Initializable,
+    IGovernance,
     GovernorUpgradeable,
     GovernorSettingsUpgradeable,
     GovernorCountingSimpleUpgradeable,

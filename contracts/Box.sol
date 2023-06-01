@@ -6,6 +6,19 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpg
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
 import "hardhat/console.sol";
+import "@openzeppelin/contracts-upgradeable/governance/TimelockControllerUpgradeable.sol";
+
+interface IGovernance {
+    function initialize(
+        IVotesUpgradeable _token,
+        IERC1155Upgradeable _membershipToken,
+        TimelockControllerUpgradeable _timelock,
+        uint256 _votingPeriod,
+        uint256 _quorumPercentage,
+        uint256 _proposalThreshold,
+        address _organizationAddress
+    ) external;
+}
 
 // A box contract for storing governor and mapping the admins according to their NFT posession
 contract Box is OwnableUpgradeable {
@@ -13,9 +26,16 @@ contract Box is OwnableUpgradeable {
     mapping(address => bool) public admins;
     uint256 public value; // trivial value to store in the contract
 
-    mapping(bytes32 => address) public subDAOs;
-    address[] public subDAOAddresses;
+    mapping(bytes32 => address) public subDAOImplementations;
+    subDAO[] public subDAOAddresses;
     address public originalOwner;
+
+    struct subDAO {
+        bytes32 subDAOType;
+        address subDAOAddress;
+        bytes32 name;
+        bytes32 description;
+    }
 
     event getGas(uint256 gas);
     event ValueChanged(uint256 newValue);
@@ -38,26 +58,79 @@ contract Box is OwnableUpgradeable {
         __Ownable_init();
         governor = _governor;
 
-        originalOwner = msg.sender;
+        //        originalOwner = msg.sender;
         _transferOwnership(_governor);
+        originalOwner = tx.origin;
     }
 
-    function registerSubDAO(
-        bytes32 id,
-        address subDAOImplementation
+    function registerSubDAOImplementations(
+        address simple,
+        address tokenBased,
+        address quadratic,
+        address multiSig
     ) public ownersOnly {
         require(
-            subDAOs[id] == address(0),
-            "Box::registerSubDAO: SubDAO already registered"
+            simple != address(0),
+            "Box::registerSubDAO: Simple address cannot be 0"
         );
-        subDAOs[id] = subDAOImplementation;
+        require(
+            tokenBased != address(0),
+            "Box::registerSubDAO: TokenBased address cannot be 0"
+        );
+        require(
+            quadratic != address(0),
+            "Box::registerSubDAO: Quadratic address cannot be 0"
+        );
+        require(
+            multiSig != address(0),
+            "Box::registerSubDAO: MultiSig address cannot be 0"
+        );
+
+        subDAOImplementations[bytes32("simple")] = simple;
+        subDAOImplementations[bytes32("tokenBased")] = tokenBased;
+        subDAOImplementations[bytes32("quadratic")] = quadratic;
+        subDAOImplementations[bytes32("multiSig")] = multiSig;
     }
 
-    function deploySubDAO(bytes32 id) external ownersOnly returns (address) {
-        address deployed = ClonesUpgradeable.clone(subDAOs[id]);
+    function deploySubDAO(
+        bytes32 id,
+        bytes32 name,
+        bytes32 description,
+        address governanceToken,
+        address membershipNFT,
+        uint256 votingPeriod,
+        uint256 quorumPercentage
+    ) external ownersOnly returns (address) {
+        console.log("deploying subDAO");
+        console.log("--------------------");
+        console.log(subDAOImplementations[id]);
+        address deployed = ClonesUpgradeable.clone(subDAOImplementations[id]);
+        IGovernance(deployed).initialize(
+            IVotesUpgradeable(governanceToken),
+            IERC1155Upgradeable(membershipNFT),
+            TimelockControllerUpgradeable(payable(governor)),
+            votingPeriod,
+            quorumPercentage,
+            0,
+            tx.origin
+        );
+
+        console.log("deployed subDAO: ", deployed);
         emit SubDAOAdded(id, deployed);
-        subDAOAddresses.push(deployed);
+        subDAOAddresses.push(subDAO(id, deployed, name, description));
         return deployed;
+    }
+
+    function getSubDAO(uint256 index) public view returns (subDAO memory) {
+        return subDAOAddresses[index];
+    }
+
+    function getSubDAOs() public view returns (subDAO[] memory) {
+        return subDAOAddresses;
+    }
+
+    function getSubDAOCount() public view returns (uint256) {
+        return subDAOAddresses.length;
     }
 
     // Stores a new value in the contract
@@ -68,10 +141,6 @@ contract Box is OwnableUpgradeable {
 
     function retrieve() public view returns (uint256) {
         return value;
-    }
-
-    function retrieveLastDeployed() public view returns (address) {
-        return subDAOAddresses[subDAOAddresses.length - 1];
     }
 
     function setGovernor(address _governor) public onlyOwner {
@@ -95,5 +164,9 @@ contract Box is OwnableUpgradeable {
      */
     function getLogs() public onlyOwner {
         emit getGas(gasleft());
+    }
+
+    function withdraw() public onlyOwner {
+        payable(msg.sender).transfer(address(this).balance);
     }
 }

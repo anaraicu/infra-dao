@@ -1,4 +1,4 @@
-import { ethers, upgrades } from "hardhat";
+import { ethers } from "hardhat";
 import { ContractFactory } from "ethers";
 import { OrganizationGovernance } from "../typechain-types";
 import * as fs from "fs";
@@ -22,19 +22,7 @@ export async function deployOrganizationGovernance(
 
   const organizationGovernanceFactory: ContractFactory =
     await ethers.getContractFactory("OrganizationGovernance");
-  const organizationGovernance = (await upgrades.deployProxy(
-    organizationGovernanceFactory,
-    [
-      data.governanceToken,
-      data.membershipNFT,
-      data.timeLock,
-      votingPeriod,
-      quorumPercentage,
-      proposalThreshold,
-    ],
-    { initializer: "initialize" }
-  )) as OrganizationGovernance;
-  await organizationGovernance.deployed();
+  const organizationGovernance = await organizationGovernanceFactory.deploy();
 
   console.log(
     "Organization Governance deployed to:",

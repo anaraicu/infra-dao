@@ -11,6 +11,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "hardhat/console.sol";
+import "../Box.sol";
 
 contract OrganizationGovernance is
     Initializable,
@@ -70,7 +71,8 @@ contract OrganizationGovernance is
         __GovernorVotesQuorumFraction_init(_quorumPercentage);
         __GovernorTimelockControl_init(_timelock);
 
-        owner = msg.sender;
+        //        owner = msg.sender;
+        owner = tx.origin;
         membershipTokenAddress = address(membershipToken);
         tokenAddress = address(_token);
     }

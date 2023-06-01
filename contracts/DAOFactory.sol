@@ -24,6 +24,8 @@ contract DAOFactory is OwnableUpgradeable {
         address membershipNFT;
         address box;
         address timeLock;
+        bytes32 name;
+        bytes32 description;
     }
 
     event ClonedContractDeployed(bytes32 contractType, address deployedAddress);
@@ -50,11 +52,15 @@ contract DAOFactory is OwnableUpgradeable {
     }
 
     function deployDAO(
+        bytes32 name,
+        bytes32 description,
         string memory uri,
         uint256 initialSupply,
         uint256 votingPeriod,
         uint256 quorumPercentage
     ) public payable returns (address, address, address, address, address) {
+        console.log("MSG SENDER: ", _msgSender());
+        console.log(tx.origin);
         require(
             organizationGovernance != address(0),
             "organizationGovernance not registered"
@@ -68,23 +74,33 @@ contract DAOFactory is OwnableUpgradeable {
         require(timeLock != address(0), "timeLock not registered");
 
         DAO memory newDAO;
+        newDAO.name = name;
+        newDAO.description = description;
         newDAO.governanceToken = ClonesUpgradeable.clone(governanceToken);
+        GovernanceToken(newDAO.governanceToken).initialize();
         emit ClonedContractDeployed("governanceToken", newDAO.governanceToken);
 
         console.log("newDAO.membershipNFT");
         newDAO.membershipNFT = ClonesUpgradeable.clone(membershipNFT);
-        emit ClonedContractDeployed("membershipNFT", newDAO.membershipNFT);
         MembershipNFT(newDAO.membershipNFT).initialize(uri, initialSupply);
+        emit ClonedContractDeployed("membershipNFT", newDAO.membershipNFT);
 
         console.log("newDAO.timeLock");
         newDAO.timeLock = ClonesUpgradeable.clone(timeLock);
-        emit ClonedContractDeployed("timeLock", newDAO.timeLock);
-
-        console.log("newDAO.organizationGovernance");
-
         newDAO.organizationGovernance = ClonesUpgradeable.clone(
             organizationGovernance
         );
+
+        address[] memory executors = new address[](1);
+        executors[0] = newDAO.organizationGovernance;
+        TimeLock(payable(newDAO.timeLock)).initialize(
+            10,
+            executors,
+            executors,
+            _msgSender()
+        );
+        emit ClonedContractDeployed("timeLock", newDAO.timeLock);
+
         OrganizationGovernance(payable(newDAO.organizationGovernance))
             .initialize(
                 GovernanceToken(newDAO.governanceToken),
@@ -99,21 +115,19 @@ contract DAOFactory is OwnableUpgradeable {
             newDAO.organizationGovernance
         );
 
-        console.log("newDAO.box");
-
         newDAO.box = ClonesUpgradeable.clone(box);
-        emit ClonedContractDeployed("box", newDAO.box);
         Box(newDAO.box).initialize(newDAO.timeLock);
+        emit ClonedContractDeployed("box", newDAO.box);
 
         deployedDAOs.push(newDAO);
         emit DAODeployed(address(newDAO.box));
 
         return (
+            newDAO.box,
+            newDAO.organizationGovernance,
             newDAO.governanceToken,
             newDAO.membershipNFT,
-            newDAO.timeLock,
-            newDAO.organizationGovernance,
-            newDAO.box
+            newDAO.timeLock
         );
     }
 

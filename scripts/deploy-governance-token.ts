@@ -7,11 +7,7 @@ import { deploymentsFile } from "../helper-config";
 export async function deployGovernanceToken() {
   const governanceTokenFactory: ContractFactory =
     await ethers.getContractFactory("GovernanceToken");
-  const governanceToken = await upgrades.deployProxy(
-    governanceTokenFactory,
-    [],
-    { initializer: "initialize" }
-  );
+  const governanceToken = await governanceTokenFactory.deploy();
   await governanceToken.deployed();
 
   console.log("Governance Token deployed to:", governanceToken.address);

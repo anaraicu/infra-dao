@@ -1,12 +1,16 @@
-import { ethers, network, upgrades } from "hardhat";
-import { BigNumber, Signer } from "ethers";
+import { ethers, network } from "hardhat";
+import { Signer } from "ethers";
 import { expect } from "chai";
 import {
+  Box,
   Governance,
   GovernanceToken,
   MembershipNFT,
+  MultiSigGovernance,
   OrganizationGovernance,
+  QuadraticGovernance,
   TimeLock,
+  TokenBasedGovernance,
 } from "../typechain-types";
 import { solidity } from "ethereum-waffle";
 import {
@@ -15,17 +19,9 @@ import {
   setAdminsMembersAndVotingPower,
 } from "./OrganizationGovernanceTest";
 import {
-  Governance__factory,
-  QuadraticGovernance__factory,
-  TokenBasedGovernance__factory,
-  MultiSigGovernance__factory,
-} from "../typechain-types";
-import { keccak256 } from "ethers/lib/utils";
-import {
   developmentChains,
   MIN_DELAY,
-  STORE_FUNC,
-  STORE_VALUE,
+  QUORUM_PERCENTAGE,
   VOTING_PERIOD,
   VOTING_REASON_EXAMPLE,
 } from "../helper-config";
@@ -35,6 +31,46 @@ import { moveTime } from "../utils/move-time";
 const chai = require("chai");
 chai.use(solidity);
 const hre = require("hardhat");
+
+async function deploySubGovernanceContracts() {
+  const governanceFactory = await ethers.getContractFactory("Governance");
+  const governance = await governanceFactory.deploy();
+  await governance.deployed();
+  console.log("Governance deployed to:", governance.address);
+
+  const tokenBasedGovernanceFactory = await ethers.getContractFactory(
+    "TokenBasedGovernance"
+  );
+  const tokenBasedGovernance =
+    (await tokenBasedGovernanceFactory.deploy()) as TokenBasedGovernance;
+  await tokenBasedGovernance.deployed();
+  console.log(
+    "TokenBasedGovernance deployed to:",
+    tokenBasedGovernance.address
+  );
+
+  const quadraticGovernanceFactory = await ethers.getContractFactory(
+    "QuadraticGovernance"
+  );
+  const quadraticGovernance =
+    (await quadraticGovernanceFactory.deploy()) as QuadraticGovernance;
+  await quadraticGovernance.deployed();
+  console.log("QuadraticGovernance deployed to:", quadraticGovernance.address);
+
+  const multiSigGovernanceFactory = await ethers.getContractFactory(
+    "MultiSigGovernance"
+  );
+  const multiSigGovernance =
+    (await multiSigGovernanceFactory.deploy()) as MultiSigGovernance;
+  await multiSigGovernance.deployed();
+  console.log("MultiSigGovernance deployed to:", multiSigGovernance.address);
+  return {
+    governance,
+    tokenBasedGovernance,
+    quadraticGovernance,
+    multiSigGovernance,
+  };
+}
 
 describe("BoxCreateSubDAOUnitTests", function () {
   let owner: Signer;
@@ -70,6 +106,15 @@ describe("BoxCreateSubDAOUnitTests", function () {
     organizationGovernance = res.organizationGovernance;
     box = res.box;
 
+    const impls = await deploySubGovernanceContracts();
+
+    await (box as Box).registerSubDAOImplementations(
+      impls.governance.address,
+      impls.tokenBasedGovernance.address,
+      impls.quadraticGovernance.address,
+      impls.multiSigGovernance.address
+    );
+
     await setAdminsMembersAndVotingPower(
       membershipNFT,
       governanceToken,
@@ -81,6 +126,12 @@ describe("BoxCreateSubDAOUnitTests", function () {
 
     encodedFunctionCall = box.interface.encodeFunctionData("deploySubDAO", [
       ethers.utils.formatBytes32String("tokenBased"),
+      ethers.utils.formatBytes32String("Name of the subDAO"),
+      ethers.utils.formatBytes32String("Description of the subDAO"),
+      governanceToken.address,
+      membershipNFT.address,
+      VOTING_PERIOD,
+      QUORUM_PERCENTAGE,
     ]);
 
     // Propose a new proposal
@@ -109,26 +160,11 @@ describe("BoxCreateSubDAOUnitTests", function () {
     const descriptionHash = ethers.utils.keccak256(
       ethers.utils.toUtf8Bytes(description)
     );
-    const implementations = [
-      { name: "simple", factory: Governance__factory },
-      { name: "quadratic", factory: QuadraticGovernance__factory },
-      { name: "tokenBased", factory: TokenBasedGovernance__factory },
-      { name: "multiSig", factory: MultiSigGovernance__factory },
-    ];
 
     console.log(`====================================`);
     console.log(timelock.address);
     console.log(await owner.getAddress());
     console.log(`====================================`);
-
-    for (const { name, factory } of implementations) {
-      const governanceFactory = new factory(owner);
-      const governance = await governanceFactory.deploy();
-      console.log(`${name} deployed at ${governance.address}`);
-      const formattedName = ethers.utils.formatBytes32String(name);
-      const tx = await box.registerSubDAO(formattedName, governance.address);
-      await tx.wait();
-    }
 
     const { proposalId, proposalSnapshot } = await makeProposal(
       encodedFunctionCall,

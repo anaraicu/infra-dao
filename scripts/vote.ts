@@ -1,18 +1,13 @@
 import * as fs from "fs";
 import {
-  VOTING_PERIOD,
   deploymentsFile,
   developmentChains,
   proposalsFile,
+  VOTING_PERIOD,
 } from "../helper-config";
-import { network, ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { moveBlocks } from "../utils/move-blocks";
-import { toUtf8Bytes } from "ethers/lib/utils";
-import {
-  GovernanceToken,
-  MembershipNFT,
-  OrganizationGovernance,
-} from "../typechain-types";
+import { DAOFactory, OrganizationGovernance } from "../typechain-types";
 
 async function voteOnLast() {
   const [deployer, member] = await ethers.getSigners();
@@ -21,6 +16,12 @@ async function voteOnLast() {
 
   const content = fs.readFileSync(deploymentsFile, "utf8");
   const data = JSON.parse(content);
+
+  const daoFactory = (await ethers.getContractAt(
+    "DAOFactory",
+    data.daoFactory
+  )) as DAOFactory;
+  const count = (await daoFactory.getDAOCount()).toNumber();
 
   const proposals = JSON.parse(fs.readFileSync(proposalsFile, "utf8"));
   const lastIndex = proposals[network.config.chainId!].length - 1;
@@ -31,7 +32,7 @@ async function voteOnLast() {
   const voteType = 1;
   const governor = (await ethers.getContractAt(
     "OrganizationGovernance",
-    data.organizationGovernance
+    data[count]["organizationGovernance"]
   )) as OrganizationGovernance;
 
   const reason = "I like this proposal";

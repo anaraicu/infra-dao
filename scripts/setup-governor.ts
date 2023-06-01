@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { TimeLock } from "../typechain-types";
+import { DAOFactory, TimeLock } from "../typechain-types";
 import * as fs from "fs";
 import { deploymentsFile } from "../helper-config";
 
@@ -10,9 +10,15 @@ export async function setupRoles() {
   const [deployer] = await ethers.getSigners();
   const deployerAddress = await deployer.getAddress();
 
+  const daoFactory = (await ethers.getContractAt(
+    "DAOFactory",
+    data.daoFactory
+  )) as DAOFactory;
+  const count = (await daoFactory.getDAOCount()).toNumber();
+
   const timeLock = (await ethers.getContractAt(
     "TimeLock",
-    data.timeLock
+    data[count]["timeLock"]
   )) as TimeLock;
 
   const proposerRole = await timeLock.PROPOSER_ROLE();
