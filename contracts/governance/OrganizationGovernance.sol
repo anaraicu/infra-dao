@@ -205,6 +205,10 @@ contract OrganizationGovernance is
         return super.propose(targets, values, calldatas, description);
     }
 
+    function getProposalsLength() public view returns (uint256) {
+        return proposalIds.length;
+    }
+
     function createSubDaoProject(address _subDAO) public daoOwnerOnly {
         require(
             _subDAO != address(0),

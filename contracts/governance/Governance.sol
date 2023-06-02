@@ -178,6 +178,10 @@ contract Governance is
         return super.propose(targets, values, calldatas, description);
     }
 
+    function getProposalsLength() public view returns (uint256) {
+        return proposalIds.length;
+    }
+
     function proposalThreshold()
         public
         view

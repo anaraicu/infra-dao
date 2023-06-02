@@ -16,6 +16,7 @@ contract MembershipNFT is
     string public name;
     string public symbol;
     bool public reinitialized;
+    uint256 public totalSupply;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -32,19 +33,7 @@ contract MembershipNFT is
         symbol = "MEM";
         reinitialized = false;
         _transferOwnership(tx.origin);
-    }
-
-    function reinitialize(
-        string memory _uri,
-        uint256 _initialSupply
-    ) public onlyOwner {
-        require(
-            !reinitialized,
-            "MemershipNFT::reinitialize:already reinitialized"
-        );
-        reinitialized = true;
-        __ERC1155_init(_uri);
-        _mint(msg.sender, 0, _initialSupply, "");
+        totalSupply = _initialSupply;
     }
 
     function setURI(string memory newuri) public onlyOwner {
@@ -62,6 +51,7 @@ contract MembershipNFT is
         bytes memory data
     ) public onlyOwner {
         _mint(account, id, amount, data);
+        totalSupply += amount;
     }
 
     function mintBatch(
@@ -71,6 +61,10 @@ contract MembershipNFT is
         bytes memory data
     ) public onlyOwner {
         _mintBatch(to, ids, amounts, data);
+        uint256 amountsLength = amounts.length;
+        for (uint256 i = 0; i < amountsLength; i++) {
+            totalSupply += amounts[i];
+        }
     }
 
     function burn(address account, uint256 id, uint256 amount) public override {
@@ -78,6 +72,12 @@ contract MembershipNFT is
             msg.sender == account || msg.sender == owner(),
             "only owner can burn"
         );
+        require(
+            balanceOf(account, id) > 0,
+            "MembershipNFT::burn: balance is 0"
+        );
+        require(totalSupply > 0, "total supply is 0");
+        totalSupply -= amount;
         _burn(account, id, amount);
     }
 
@@ -90,6 +90,15 @@ contract MembershipNFT is
             msg.sender == account || msg.sender == owner(),
             "only owner can burn"
         );
+        require(
+            balanceOf(account, ids[0]) > 0,
+            "MembershipNFT::burnBatch: balance is 0"
+        );
+        require(totalSupply > 0, "total supply is 0");
+        uint256 amountsLength = amounts.length;
+        for (uint256 i = 0; i < amountsLength; i++) {
+            totalSupply -= amounts[i];
+        }
         _burnBatch(account, ids, amounts);
     }
 }
