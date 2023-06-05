@@ -9,6 +9,13 @@
       "1": "0xb07C1e7a837D9751dC912072758CC44A30b1CDc8"
     }
   },
+  "3": {
+    "daoFactory": "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0",
+    "governanceToken": "0x5A362660073f1b2828b0c231B2B808Ae5ADa0854",
+    "membershipNFT": "0x623F2Facc4E3e4D3818097167796eFB227f808Ea",
+    "timeLock": "0xF297efF81D483Ca633D957A69FF9Dd4f0fC47874",
+    "organizationGovernance": "0x043d5Aec5938D32aE461cbc1c27B2055f573F787"
+  },
   "governanceToken": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   "membershipNFT": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
   "timeLock": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",

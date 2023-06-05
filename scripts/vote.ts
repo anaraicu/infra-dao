@@ -9,7 +9,7 @@ import { ethers, network } from "hardhat";
 import { moveBlocks } from "../utils/move-blocks";
 import { DAOFactory, OrganizationGovernance } from "../typechain-types";
 
-async function voteOnLast() {
+async function voteOnLast(daoId: number) {
   const [deployer, member] = await ethers.getSigners();
   const deployerAddress = await deployer.getAddress();
   const memberAddress = await member.getAddress();
@@ -32,7 +32,8 @@ async function voteOnLast() {
   const voteType = 1;
   const governor = (await ethers.getContractAt(
     "OrganizationGovernance",
-    data[count]["organizationGovernance"]
+    // data[1]["organizationGovernance"]
+    data[daoId]["organizationGovernance"]
   )) as OrganizationGovernance;
 
   const reason = "I like this proposal";
@@ -61,7 +62,7 @@ async function voteOnLast() {
   //     > 4 == SUCCEEDED IN open zeppelin/contracts/governance/IGovernor.sol
 }
 
-voteOnLast()
+voteOnLast(1)
   .then(() => process.exit(0))
   .catch((error) => {
     console.error(error);

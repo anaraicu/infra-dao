@@ -34,7 +34,7 @@ contract Box is OwnableUpgradeable {
         bytes32 subDAOType;
         address subDAOAddress;
         bytes32 name;
-        bytes32 description;
+        bytes description;
     }
 
     event getGas(uint256 gas);
@@ -95,7 +95,7 @@ contract Box is OwnableUpgradeable {
     function deploySubDAO(
         bytes32 id,
         bytes32 name,
-        bytes32 description,
+        string memory description,
         address governanceToken,
         address membershipNFT,
         uint256 votingPeriod,
@@ -117,7 +117,9 @@ contract Box is OwnableUpgradeable {
 
         console.log("deployed subDAO: ", deployed);
         emit SubDAOAdded(id, deployed);
-        subDAOAddresses.push(subDAO(id, deployed, name, description));
+        subDAOAddresses.push(
+            subDAO(id, deployed, name, abi.encodePacked(description))
+        );
         return deployed;
     }
 
@@ -169,4 +171,5 @@ contract Box is OwnableUpgradeable {
     function withdraw() public onlyOwner {
         payable(msg.sender).transfer(address(this).balance);
     }
+
 }

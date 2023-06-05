@@ -25,7 +25,7 @@ contract DAOFactory is OwnableUpgradeable {
         address box;
         address timeLock;
         bytes32 name;
-        bytes32 description;
+        bytes description;
     }
 
     event ClonedContractDeployed(bytes32 contractType, address deployedAddress);
@@ -53,7 +53,7 @@ contract DAOFactory is OwnableUpgradeable {
 
     function deployDAO(
         bytes32 name,
-        bytes32 description,
+        string memory description,
         string memory uri,
         uint256 initialSupply,
         uint256 votingPeriod,
@@ -75,7 +75,7 @@ contract DAOFactory is OwnableUpgradeable {
 
         DAO memory newDAO;
         newDAO.name = name;
-        newDAO.description = description;
+        newDAO.description = abi.encodePacked(description);
         newDAO.governanceToken = ClonesUpgradeable.clone(governanceToken);
         GovernanceToken(newDAO.governanceToken).initialize();
         emit ClonedContractDeployed("governanceToken", newDAO.governanceToken);

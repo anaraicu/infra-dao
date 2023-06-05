@@ -4,7 +4,7 @@ import { deploymentsFile } from "../helper-config";
 import { DAOFactory, GovernanceToken, MembershipNFT } from "../typechain-types";
 import { toUtf8Bytes } from "ethers/lib/utils";
 
-export async function addFirstMember() {
+export async function addFirstMember(daoId: number) {
   const [deployer, member] = await ethers.getSigners();
   const memberAddress = await member.getAddress();
   // const memberAddress = Buffer.from(process.env.METAMASK_ADDRESS, 'base64').toString('ascii');
@@ -20,7 +20,7 @@ export async function addFirstMember() {
 
   const membershipNFT = (await ethers.getContractAt(
     "MembershipNFT",
-    data[count]["membershipNFT"]
+    data[daoId]["membershipNFT"]
   )) as MembershipNFT;
   const mintTx = await membershipNFT
     .connect(deployer)
@@ -30,8 +30,9 @@ export async function addFirstMember() {
 
   const governanceToken = (await ethers.getContractAt(
     "GovernanceToken",
-    data[count]["governanceToken"]
+    data[daoId]["governanceToken"]
   )) as GovernanceToken;
+
   console.log("Owner: " + (await governanceToken.owner()));
   const mintTx2 = await governanceToken
     .connect(deployer)
@@ -41,7 +42,7 @@ export async function addFirstMember() {
   console.log("Minted governance token for " + memberAddress);
 }
 
-addFirstMember()
+addFirstMember(1)
   .then(() => process.exit(0))
   .catch((error) => {
     console.log(error);

@@ -12,7 +12,7 @@ import { moveTime } from "../utils/move-time";
 import fs from "fs";
 import { DAOFactory } from "../typechain-types";
 
-export async function queueAndExecute() {
+export async function queueAndExecute(daoId: number) {
   const content = fs.readFileSync(deploymentsFile, "utf8");
   const data = JSON.parse(content);
 
@@ -23,7 +23,7 @@ export async function queueAndExecute() {
   const count = (await daoFactory.getDAOCount()).toNumber();
 
   const args = [STORE_VALUE];
-  const box = await ethers.getContractAt("Box", data[count]["box"]);
+  const box = await ethers.getContractAt("Box", data[daoId]["box"]);
   const encodedFunctionCall = box.interface.encodeFunctionData(
     STORE_FUNC,
     args
@@ -35,7 +35,8 @@ export async function queueAndExecute() {
 
   const governor = await ethers.getContractAt(
     "OrganizationGovernance",
-    data[count]["organizationGovernance"]
+    data[daoId]["organizationGovernance"]
+    // data[count]["organizationGovernance"]
   );
 
   console.log("Queueing...");
@@ -66,7 +67,7 @@ export async function queueAndExecute() {
 }
 
 // queue function is in GovernorTimeLockController in extensions
-queueAndExecute()
+queueAndExecute(1)
   .then(() => process.exit(0))
   .catch((error) => {
     console.error(error);

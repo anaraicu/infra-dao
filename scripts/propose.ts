@@ -19,7 +19,8 @@ import { DAOFactory } from "../typechain-types";
 export async function propose(
   args: any[],
   functionToCall: string,
-  proposalDescription: string
+  proposalDescription: string,
+  daoId: number
 ) {
   const content = fs.readFileSync(deploymentsFile, "utf8");
   const data = JSON.parse(content);
@@ -32,9 +33,11 @@ export async function propose(
 
   const governor = await ethers.getContractAt(
     "OrganizationGovernance",
-    data[count]["organizationGovernance"]
+    data[daoId]["organizationGovernance"]
+    // data[1]["organizationGovernance"]
   );
-  const box = await ethers.getContractAt("Box", data[count]["box"]);
+  // const box = await ethers.getContractAt("Box", data[count]["box"]);
+  const box = await ethers.getContractAt("Box", data[1]["box"]);
 
   const encodeFunctionCall = box.interface.encodeFunctionData(
     functionToCall,
@@ -96,7 +99,7 @@ export async function propose(
   fs.writeFileSync(proposalsFile, JSON.stringify(proposals));
 }
 
-propose([STORE_VALUE], STORE_FUNC, PROPOSAL_DESCRIPTION_EXAMPLE)
+propose([STORE_VALUE], STORE_FUNC, PROPOSAL_DESCRIPTION_EXAMPLE, 1)
   .then(() => process.exit(0))
   .catch((error) => {
     console.log(error);
