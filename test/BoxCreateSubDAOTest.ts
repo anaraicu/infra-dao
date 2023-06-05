@@ -27,10 +27,11 @@ import {
 } from "../helper-config";
 import { moveBlocks } from "../utils/move-blocks";
 import { moveTime } from "../utils/move-time";
+import web3 from "web3";
+import GovernanceABI from "../artifacts/contracts/governance/Governance.sol/Governance.json";
 
 const chai = require("chai");
 chai.use(solidity);
-const hre = require("hardhat");
 
 async function deploySubGovernanceContracts() {
   const governanceFactory = await ethers.getContractFactory("Governance");
@@ -125,9 +126,9 @@ describe("BoxCreateSubDAOUnitTests", function () {
     );
 
     encodedFunctionCall = box.interface.encodeFunctionData("deploySubDAO", [
-      ethers.utils.formatBytes32String("tokenBased"),
-      ethers.utils.formatBytes32String("Name of the subDAO"),
-      ethers.utils.formatBytes32String("Description of the subDAO"),
+      ethers.utils.formatBytes32String("simple"),
+      ethers.utils.formatBytes32String("Name subDAO"),
+      "Description of the subDAO",
       governanceToken.address,
       membershipNFT.address,
       VOTING_PERIOD,
@@ -162,8 +163,8 @@ describe("BoxCreateSubDAOUnitTests", function () {
     );
 
     console.log(`====================================`);
-    console.log(timelock.address);
-    console.log(await owner.getAddress());
+    console.log("Owner address: ", await owner.getAddress());
+    console.log("Timelock address: ", timelock.address);
     console.log(`====================================`);
 
     const { proposalId, proposalSnapshot } = await makeProposal(
@@ -194,7 +195,6 @@ describe("BoxCreateSubDAOUnitTests", function () {
     console.log(`Voting on proposal ${proposalId}`);
     console.log(`====================================`);
 
-    // expect(await organizationGovernance.connect(address1).connect(address1)["castVote(uint256,uint8,uint256)"](proposalId, 0, 2)).to.be.revertedWith("OrganizationGovernance: You need at least as many tokens as you want to vote with.");
     const voteTx1 = await organizationGovernance
       .connect(address1)
       ["castVote(uint256,uint8,string)"](proposalId, 1, VOTING_REASON_EXAMPLE);
@@ -260,6 +260,28 @@ describe("BoxCreateSubDAOUnitTests", function () {
     );
     await executeTx.wait(1);
 
-    console.log(`SubDAO deployed at ${await box.retrieveLastDeployed()}`);
+    const count = await box.getSubDAOCount();
+    console.log(`SubDAO count: ${count}`);
+    const subDAOData = await box.getSubDAO(count - 1);
+
+    console.log(subDAOData);
+
+    console.log(
+      `SubDAO name: ${ethers.utils.parseBytes32String(subDAOData.name)}`
+    );
+    console.log(
+      `SubDAO description: ${web3.utils.hexToUtf8(subDAOData.description)}`
+    );
+    console.log(`SubDAO address: ${subDAOData.subDAOAddress}`);
+    console.log(
+      `SubDAO Type: ${ethers.utils.parseBytes32String(subDAOData.subDAOType)}`
+    );
+
+    const subDAO = new ethers.Contract(
+      subDAOData.subDAOAddress,
+      GovernanceABI.abi,
+      owner
+    );
+    console.log(`SUB DAO Voting period: ${await subDAO.votingPeriod()}`);
   });
 });

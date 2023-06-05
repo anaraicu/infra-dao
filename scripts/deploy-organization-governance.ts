@@ -23,6 +23,7 @@ export async function deployOrganizationGovernance(
   const organizationGovernanceFactory: ContractFactory =
     await ethers.getContractFactory("OrganizationGovernance");
   const organizationGovernance = await organizationGovernanceFactory.deploy();
+  await organizationGovernance.deployed();
 
   console.log(
     "Organization Governance deployed to:",

@@ -123,7 +123,6 @@ export async function getTokenAndGovernanceContracts(
   const boxFactory = await hre.ethers.getContractFactory("Box", owner);
   const box = await upgrades.deployProxy(boxFactory, [timelock.address], {
     initializer: "initialize",
-    kind: "transparent",
   });
   await box.deployed();
 

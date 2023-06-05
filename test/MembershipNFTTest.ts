@@ -1,5 +1,5 @@
 import { ethers, upgrades } from "hardhat";
-import { Contract, Signer } from "ethers";
+import { Signer } from "ethers";
 import { expect } from "chai";
 import { solidity } from "ethereum-waffle";
 
@@ -8,7 +8,6 @@ import { toUtf8Bytes } from "ethers/lib/utils";
 
 const chai = require("chai");
 chai.use(solidity);
-const hre = require("hardhat");
 
 describe("MembershipNFTUnitTests", function () {
   let membershipNFT: MembershipNFT;
@@ -86,6 +85,6 @@ describe("MembershipNFTUnitTests", function () {
 
     await expect(
       membershipNFT.connect(owner).burnBatch(account, [2], [10])
-    ).to.be.revertedWith("ERC1155: burn amount exceeds balance");
+    ).to.be.revertedWith("MembershipNFT::burnBatch: balance is 0");
   });
 });

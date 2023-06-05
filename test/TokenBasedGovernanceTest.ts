@@ -29,7 +29,6 @@ import {
 
 const chai = require("chai");
 chai.use(solidity);
-const hre = require("hardhat");
 
 describe("TokenBasedGovernance", () => {
   const initialSupply = 20;
@@ -158,7 +157,6 @@ describe("TokenBasedGovernance", () => {
       .connect(address2)
       .approve(tokenBasedGovernance.address, 10);
 
-    // expect(await tokenBasedGovernance.connect(address1).connect(address1)["castVote(uint256,uint8,uint256)"](proposalId, 0, 2)).to.be.revertedWith("OrganizationGovernance: You need at least as many tokens as you want to vote with.");
     const voteTx1 = await tokenBasedGovernance
       .connect(address1)
       ["castVote(uint256,uint8,uint256,string)"](

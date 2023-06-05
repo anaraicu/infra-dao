@@ -27,7 +27,7 @@ contract Box is OwnableUpgradeable {
     uint256 public value; // trivial value to store in the contract
 
     mapping(bytes32 => address) public subDAOImplementations;
-    subDAO[] public subDAOAddresses;
+    subDAO[] public subDAOs;
     address public originalOwner;
 
     struct subDAO {
@@ -112,27 +112,25 @@ contract Box is OwnableUpgradeable {
             votingPeriod,
             quorumPercentage,
             0,
-            tx.origin
+            address(this)
         );
 
         console.log("deployed subDAO: ", deployed);
         emit SubDAOAdded(id, deployed);
-        subDAOAddresses.push(
-            subDAO(id, deployed, name, abi.encodePacked(description))
-        );
+        subDAOs.push(subDAO(id, deployed, name, abi.encodePacked(description)));
         return deployed;
     }
 
     function getSubDAO(uint256 index) public view returns (subDAO memory) {
-        return subDAOAddresses[index];
+        return subDAOs[index];
     }
 
     function getSubDAOs() public view returns (subDAO[] memory) {
-        return subDAOAddresses;
+        return subDAOs;
     }
 
     function getSubDAOCount() public view returns (uint256) {
-        return subDAOAddresses.length;
+        return subDAOs.length;
     }
 
     // Stores a new value in the contract
@@ -167,9 +165,4 @@ contract Box is OwnableUpgradeable {
     function getLogs() public onlyOwner {
         emit getGas(gasleft());
     }
-
-    function withdraw() public onlyOwner {
-        payable(msg.sender).transfer(address(this).balance);
-    }
-
 }

@@ -1,6 +1,6 @@
 import { ethers, network, upgrades } from "hardhat";
 import { expect } from "chai";
-import { Contract, ContractFactory, Signer } from "ethers";
+import { ContractFactory, Signer } from "ethers";
 import { solidity } from "ethereum-waffle";
 import {
   MembershipNFT,

@@ -26,14 +26,6 @@ contract OrganizationGovernance is
     address public tokenAddress;
     address owner;
 
-    enum GovernanceType {
-        TokenQuorum,
-        Quadratic,
-        SimpleMajority,
-        MultiSig,
-        PoP
-    }
-
     struct Proposal {
         address proposer;
         uint256 budget;
@@ -345,5 +337,22 @@ contract OrganizationGovernance is
         returns (uint256)
     {
         return castVote(proposalId, support, "");
+    }
+
+    function withdraw(
+        uint256 amount,
+        address destination
+    ) external timeLockOnly {
+        require(
+            address(this).balance >= amount,
+            "OrganizationGovernance: Insufficient balance"
+        );
+        require(
+            destination != address(0),
+            "OrganizationGovernance: Invalid destination address"
+        );
+
+        (bool success, ) = destination.call{value: amount}("");
+        require(success, "OrganizationGovernance: Transfer failed");
     }
 }

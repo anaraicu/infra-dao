@@ -29,7 +29,6 @@ import {
 
 const chai = require("chai");
 chai.use(solidity);
-const hre = require("hardhat");
 
 describe("QuadraticGovernance", () => {
   const initialSupply = 20;
@@ -251,9 +250,5 @@ describe("QuadraticGovernance", () => {
 
     const boxNewValue = await box.retrieve();
     console.log(`New Box Value: ${boxNewValue.toString()}`);
-
-    // TODO: Fix Close DAO test
-    // const withdrawTx = await quadraticGovernance.connect(owner).closeDAO();
-    // await withdrawTx.wait(1);
   });
 });

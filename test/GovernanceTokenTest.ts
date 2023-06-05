@@ -1,12 +1,11 @@
 import { ethers, upgrades } from "hardhat";
-import { BigNumber, Signer } from "ethers";
+import { Signer } from "ethers";
 import { expect } from "chai";
 import { GovernanceToken } from "../typechain-types";
 import { solidity } from "ethereum-waffle";
 
 const chai = require("chai");
 chai.use(solidity);
-const hre = require("hardhat");
 
 describe("GovernanceTokenUnitTests", function () {
   let governanceToken: GovernanceToken;

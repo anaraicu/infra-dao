@@ -60,7 +60,6 @@ contract DAOFactory is OwnableUpgradeable {
         uint256 quorumPercentage
     ) public payable returns (address, address, address, address, address) {
         console.log("MSG SENDER: ", _msgSender());
-        console.log(tx.origin);
         require(
             organizationGovernance != address(0),
             "organizationGovernance not registered"
@@ -90,7 +89,6 @@ contract DAOFactory is OwnableUpgradeable {
         newDAO.organizationGovernance = ClonesUpgradeable.clone(
             organizationGovernance
         );
-
         address[] memory executors = new address[](1);
         executors[0] = newDAO.organizationGovernance;
         TimeLock(payable(newDAO.timeLock)).initialize(
@@ -101,6 +99,7 @@ contract DAOFactory is OwnableUpgradeable {
         );
         emit ClonedContractDeployed("timeLock", newDAO.timeLock);
 
+        console.log("newDAO.organizationGovernance");
         OrganizationGovernance(payable(newDAO.organizationGovernance))
             .initialize(
                 GovernanceToken(newDAO.governanceToken),
@@ -114,11 +113,11 @@ contract DAOFactory is OwnableUpgradeable {
             "organizationGovernance",
             newDAO.organizationGovernance
         );
-
+        console.log("newDAO.box");
         newDAO.box = ClonesUpgradeable.clone(box);
         Box(newDAO.box).initialize(newDAO.timeLock);
         emit ClonedContractDeployed("box", newDAO.box);
-
+        console.log("newDAO deployed");
         deployedDAOs.push(newDAO);
         emit DAODeployed(address(newDAO.box));
 
