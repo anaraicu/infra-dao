@@ -3,7 +3,6 @@ import { Signer } from "ethers";
 import { expect } from "chai";
 import {
   Box,
-  Governance,
   GovernanceToken,
   MembershipNFT,
   MultiSigGovernance,

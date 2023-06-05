@@ -45,6 +45,7 @@ contract Governance is
         uint256 votes;
         address[] voters;
         mapping(address => uint256) votesByMember;
+        bytes32 targetHash;
     }
 
     uint256[] public proposalIds;
@@ -143,17 +144,13 @@ contract Governance is
         return super.state(proposalId);
     }
 
-    function propose(
+    function proposeWithTarget(
         address[] memory targets,
         uint256[] memory values,
         bytes[] memory calldatas,
-        string memory description
-    )
-        public
-        override(GovernorUpgradeable, IGovernorUpgradeable)
-        membersOnly
-        returns (uint256)
-    {
+        string memory description,
+        bytes32 targetHash
+    ) public membersOnly returns (uint256) {
         require(
             msg.sender != address(0),
             "Governance::propose: sender must not be 0 address"
@@ -174,8 +171,30 @@ contract Governance is
         proposals[proposalId].budget = 0;
         proposals[proposalId].description = description;
         proposals[proposalId].votes = 0;
+        proposals[proposalId].targetHash = targetHash;
 
         return super.propose(targets, values, calldatas, description);
+    }
+
+    function propose(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        string memory description
+    )
+        public
+        override(GovernorUpgradeable, IGovernorUpgradeable)
+        membersOnly
+        returns (uint256)
+    {
+        return
+            proposeWithTarget(
+                targets,
+                values,
+                calldatas,
+                description,
+                bytes32(0)
+            );
     }
 
     function getProposalsLength() public view returns (uint256) {
