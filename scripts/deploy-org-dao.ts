@@ -19,8 +19,8 @@ export async function deployOrgDao() {
   )) as DAOFactory;
 
   const tx = await daoFactory.deployDAO(
-    ethers.utils.formatBytes32String("eWATER DAO"),
-    ethers.utils.formatBytes32String("Description"),
+    ethers.utils.formatBytes32String("MeshPower DAO"),
+    "MeshPower aims to offer cost-effective electricity solutions to underserved communities lacking energy access, through solar-powered nanogrids and smart metering systems.",
     BASE_URI,
     10,
     VOTING_PERIOD,

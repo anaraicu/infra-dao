@@ -19,7 +19,7 @@ contract TokenBasedGovernance is Governance {
         uint256 _quorumPercentage,
         uint256 _proposalThreshold,
         address _organizationAddress
-    ) public override initializer {
+    ) public override {
         Governance.initialize(
             _token,
             membershipToken,

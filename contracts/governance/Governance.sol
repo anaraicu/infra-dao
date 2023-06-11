@@ -79,7 +79,7 @@ contract Governance is
         membershipTokenAddress = address(_membershipToken);
         tokenAddress = address(_token);
         organizationAddress = _organizationAddress;
-        owner = msg.sender;
+        owner = tx.origin;
     }
 
     modifier membersOnly() {

@@ -28,6 +28,8 @@ import { moveBlocks } from "../utils/move-blocks";
 import { moveTime } from "../utils/move-time";
 import web3 from "web3";
 import GovernanceABI from "../artifacts/contracts/governance/Governance.sol/Governance.json";
+import QuadraticGovernanceABI from "../artifacts/contracts/governance/QuadraticGovernance.sol/QuadraticGovernance.json";
+import MultiSigGovernanceABI from "../artifacts/contracts/governance/MultiSigGovernance.sol/MultiSigGovernance.json";
 
 const chai = require("chai");
 chai.use(solidity);
@@ -154,7 +156,75 @@ describe("BoxCreateSubDAOUnitTests", function () {
     await executorTx.wait(1);
   });
 
-  it("should deploy new subDAO with a new implementation using clones", async function () {
+  it('should deploy a new subDAO for simple', async function () {
+    let boxDAO = box as Box;
+    const simpleTx = await boxDAO.deploySubDAO(ethers.utils.formatBytes32String("simple"), ethers.utils.formatBytes32String("Name subDAO"), "Description of the subDAO", governanceToken.address, membershipNFT.address, VOTING_PERIOD, QUORUM_PERCENTAGE);
+    const res = await simpleTx.wait(1);
+
+    const count = await boxDAO.getSubDAOCount();
+    expect(count).to.equal(1);
+    const subDAOData = await boxDAO.getSubDAO(0);
+    expect(ethers.utils.parseBytes32String(subDAOData.name)).to.equal("Name subDAO");
+    expect(ethers.utils.parseBytes32String(subDAOData.subDAOType)).to.equal("simple");
+    expect(web3.utils.hexToAscii(subDAOData.description)).to.equal("Description of the subDAO");
+    const subDAO = new ethers.Contract(
+        subDAOData.subDAOAddress,
+        GovernanceABI.abi,
+        owner
+    );
+    expect(await subDAO.votingPeriod()).to.equal(VOTING_PERIOD);
+    expect(await subDAO.getQuorumNumerator()).to.equal(QUORUM_PERCENTAGE);
+  });
+
+
+  it('should deploy a new subDAO for quadratic', async function () {
+    let boxDAO = box as Box;
+    const quadraticTx = await boxDAO.deploySubDAO(ethers.utils.formatBytes32String("quadratic"), ethers.utils.formatBytes32String("Name subDAO"), "Description of the subDAO", governanceToken.address, membershipNFT.address, VOTING_PERIOD, QUORUM_PERCENTAGE);
+    const res = await quadraticTx.wait(1);
+
+    const count = await boxDAO.getSubDAOCount();
+    expect(count).to.equal(1);
+    const subDAOData = await boxDAO.getSubDAO(0);
+    expect(ethers.utils.parseBytes32String(subDAOData.name)).to.equal("Name subDAO");
+    expect(ethers.utils.parseBytes32String(subDAOData.subDAOType)).to.equal("quadratic");
+    expect(web3.utils.hexToAscii(subDAOData.description)).to.equal("Description of the subDAO");
+    const subDAO = new ethers.Contract(
+        subDAOData.subDAOAddress,
+        QuadraticGovernanceABI.abi,
+        owner
+    );
+    expect(await subDAO.minQuadraticVoteThreshold()).to.equal(1);
+    expect(await subDAO.votingPeriod()).to.equal(VOTING_PERIOD);
+    expect(await subDAO.getQuorumNumerator()).to.equal(QUORUM_PERCENTAGE);
+  });
+
+  it('should deploy a new subDAO for multiSig', async function () {
+    let boxDAO = box as Box;
+    const multiSigTx = await boxDAO.connect(owner).deploySubDAO(ethers.utils.formatBytes32String("multiSig"), ethers.utils.formatBytes32String("Name subDAO"), "Description of the subDAO", governanceToken.address, membershipNFT.address, VOTING_PERIOD, QUORUM_PERCENTAGE);
+    const res = await multiSigTx.wait(1);
+
+    const count = await boxDAO.getSubDAOCount();
+    expect(count).to.equal(1);
+    const subDAOData = await boxDAO.getSubDAO(0);
+    expect(ethers.utils.parseBytes32String(subDAOData.name)).to.equal("Name subDAO");
+    expect(ethers.utils.parseBytes32String(subDAOData.subDAOType)).to.equal("multiSig");
+    expect(web3.utils.hexToAscii(subDAOData.description)).to.equal("Description of the subDAO");
+    const subDAO = new ethers.Contract(
+        subDAOData.subDAOAddress,
+        MultiSigGovernanceABI.abi,
+        owner
+    );
+    await subDAO.connect(owner).addSigner(address1.getAddress());
+    expect(await subDAO.isSigner(address1.getAddress())).to.equal(true);
+    await subDAO.connect(owner).removeSigner(address1.getAddress());
+    expect(await subDAO.isSigner(address1.getAddress())).to.equal(false);
+    await subDAO.connect(owner).setRequiredSignatures(2);
+    expect(await subDAO.requiredSignatures()).to.equal(2);
+    expect(await subDAO.votingPeriod()).to.equal(VOTING_PERIOD);
+    expect(await subDAO.getQuorumNumerator()).to.equal(QUORUM_PERCENTAGE);
+  });
+
+  it("should deploy new subDAO with a new implementation using clones from a proposal outcome", async function () {
     const description =
       "Deploy new subDAO with simple governance implementation";
     const descriptionHash = ethers.utils.keccak256(

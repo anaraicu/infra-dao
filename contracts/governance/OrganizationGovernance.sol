@@ -64,7 +64,6 @@ contract OrganizationGovernance is
         __GovernorVotesQuorumFraction_init(_quorumPercentage);
         __GovernorTimelockControl_init(_timelock);
 
-        //        owner = msg.sender;
         owner = tx.origin;
         membershipTokenAddress = address(membershipToken);
         tokenAddress = address(_token);
