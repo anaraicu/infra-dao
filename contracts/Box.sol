@@ -5,7 +5,6 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
-import "hardhat/console.sol";
 import "@openzeppelin/contracts-upgradeable/governance/TimelockControllerUpgradeable.sol";
 
 interface IGovernance {
@@ -63,19 +62,34 @@ contract Box is OwnableUpgradeable {
         originalOwner = tx.origin;
     }
 
+    function registerImplementation(bytes32 id, address implementation)
+        public
+        ownersOnly
+    {
+        require(
+            implementation != address(0),
+            "Box::registerImplementation: Implementation address cannot be 0"
+        );
+        require(
+            subDAOImplementations[id] == address(0),
+            "Box::registerImplementation: Implementation already registered"
+        );
+        subDAOImplementations[id] = implementation;
+    }
+
     function registerSubDAOImplementations(
-        address simple,
         address tokenBased,
+        address weighted,
         address quadratic,
         address multiSig
     ) public ownersOnly {
         require(
-            simple != address(0),
-            "Box::registerSubDAO: Simple address cannot be 0"
-        );
-        require(
             tokenBased != address(0),
             "Box::registerSubDAO: TokenBased address cannot be 0"
+        );
+        require(
+            weighted != address(0),
+            "Box::registerSubDAO: Weighted address cannot be 0"
         );
         require(
             quadratic != address(0),
@@ -86,8 +100,8 @@ contract Box is OwnableUpgradeable {
             "Box::registerSubDAO: MultiSig address cannot be 0"
         );
 
-        subDAOImplementations[bytes32("simple")] = simple;
         subDAOImplementations[bytes32("tokenBased")] = tokenBased;
+        subDAOImplementations[bytes32("weighted")] = weighted;
         subDAOImplementations[bytes32("quadratic")] = quadratic;
         subDAOImplementations[bytes32("multiSig")] = multiSig;
     }
@@ -101,9 +115,6 @@ contract Box is OwnableUpgradeable {
         uint256 votingPeriod,
         uint256 quorumPercentage
     ) external ownersOnly returns (address) {
-        console.log("deploying subDAO");
-        console.log("--------------------");
-        console.log(subDAOImplementations[id]);
         address deployed = ClonesUpgradeable.clone(subDAOImplementations[id]);
         IGovernance(deployed).initialize(
             IVotesUpgradeable(governanceToken),
@@ -115,7 +126,6 @@ contract Box is OwnableUpgradeable {
             address(this)
         );
 
-        console.log("deployed subDAO: ", deployed);
         emit SubDAOAdded(id, deployed);
         subDAOs.push(subDAO(id, deployed, name, abi.encodePacked(description)));
         return deployed;
@@ -145,18 +155,6 @@ contract Box is OwnableUpgradeable {
 
     function setGovernor(address _governor) public onlyOwner {
         governor = _governor;
-    }
-
-    function setAdmin(address _admin) public onlyOwner {
-        admins[_admin] = true;
-    }
-
-    function removeAdmin(address _admin) public onlyOwner {
-        admins[_admin] = false;
-    }
-
-    function isAdmin(address _admin) public view returns (bool) {
-        return admins[_admin];
     }
 
     /**

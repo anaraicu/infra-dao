@@ -24,10 +24,6 @@ contract GovernanceToken is ERC20VotesUpgradeable {
     }
 
     function mint(address to, uint256 amount) public {
-        require(
-            msg.sender == owner,
-            "GovernanceToken::mint:only owner can mint"
-        );
         _mint(to, amount);
     }
 

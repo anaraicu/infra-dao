@@ -10,7 +10,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.so
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "hardhat/console.sol";
 import "../Box.sol";
 
 contract OrganizationGovernance is

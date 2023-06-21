@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { Box, DAOFactory, Governance } from "../typechain-types";
+import { Box, DAOFactory, TokenBasedGovernance } from "../typechain-types";
 import * as fs from "fs";
 import {
   deploymentsFile,
@@ -68,15 +68,15 @@ export async function deploySubDao(
 
   // Test sub-governance module was initialized correctly
   const governor = (await ethers.getContractAt(
-    "Governance",
+    "TokenBasedGovernance",
     subDAOAddress
-  )) as Governance;
-  const governorToken = await governor.votingPeriod();
-  console.log(`Governor voting period: ${governorToken.toString()}`);
+  )) as TokenBasedGovernance;
+  const governorVPeriod = await governor.votingPeriod();
+  console.log(`Governor voting period: ${governorVPeriod.toString()}`);
 }
 
 deploySubDao(
-  "simple",
+  "tokenBased",
   "eWater",
   "Description",
   VOTING_PERIOD,

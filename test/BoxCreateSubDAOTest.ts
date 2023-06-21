@@ -10,6 +10,7 @@ import {
   QuadraticGovernance,
   TimeLock,
   TokenBasedGovernance,
+  WeightedGovernance,
 } from "../typechain-types";
 import { solidity } from "ethereum-waffle";
 import {
@@ -27,7 +28,7 @@ import {
 import { moveBlocks } from "../utils/move-blocks";
 import { moveTime } from "../utils/move-time";
 import web3 from "web3";
-import GovernanceABI from "../artifacts/contracts/governance/Governance.sol/Governance.json";
+import TokenBasedGovernanceABI from "../artifacts/contracts/governance/TokenBasedGovernance.sol/TokenBasedGovernance.json";
 import QuadraticGovernanceABI from "../artifacts/contracts/governance/QuadraticGovernance.sol/QuadraticGovernance.json";
 import MultiSigGovernanceABI from "../artifacts/contracts/governance/MultiSigGovernance.sol/MultiSigGovernance.json";
 
@@ -35,21 +36,20 @@ const chai = require("chai");
 chai.use(solidity);
 
 async function deploySubGovernanceContracts() {
-  const governanceFactory = await ethers.getContractFactory("Governance");
-  const governance = await governanceFactory.deploy();
-  await governance.deployed();
-  console.log("Governance deployed to:", governance.address);
-
   const tokenBasedGovernanceFactory = await ethers.getContractFactory(
     "TokenBasedGovernance"
   );
-  const tokenBasedGovernance =
-    (await tokenBasedGovernanceFactory.deploy()) as TokenBasedGovernance;
+  const tokenBasedGovernance = await tokenBasedGovernanceFactory.deploy();
   await tokenBasedGovernance.deployed();
-  console.log(
-    "TokenBasedGovernance deployed to:",
-    tokenBasedGovernance.address
+  console.log("Governance deployed to:", tokenBasedGovernance.address);
+
+  const weightedGovernanceFactory = await ethers.getContractFactory(
+    "WeightedGovernance"
   );
+  const weightedGovernance =
+    (await weightedGovernanceFactory.deploy()) as WeightedGovernance;
+  await weightedGovernance.deployed();
+  console.log("TokenBasedGovernance deployed to:", weightedGovernance.address);
 
   const quadraticGovernanceFactory = await ethers.getContractFactory(
     "QuadraticGovernance"
@@ -67,8 +67,8 @@ async function deploySubGovernanceContracts() {
   await multiSigGovernance.deployed();
   console.log("MultiSigGovernance deployed to:", multiSigGovernance.address);
   return {
-    governance,
     tokenBasedGovernance,
+    weightedGovernance,
     quadraticGovernance,
     multiSigGovernance,
   };
@@ -111,8 +111,8 @@ describe("BoxCreateSubDAOUnitTests", function () {
     const impls = await deploySubGovernanceContracts();
 
     await (box as Box).registerSubDAOImplementations(
-      impls.governance.address,
       impls.tokenBasedGovernance.address,
+      impls.weightedGovernance.address,
       impls.quadraticGovernance.address,
       impls.multiSigGovernance.address
     );
@@ -127,7 +127,7 @@ describe("BoxCreateSubDAOUnitTests", function () {
     );
 
     encodedFunctionCall = box.interface.encodeFunctionData("deploySubDAO", [
-      ethers.utils.formatBytes32String("simple"),
+      ethers.utils.formatBytes32String("tokenBased"),
       ethers.utils.formatBytes32String("Name subDAO"),
       "Description of the subDAO",
       governanceToken.address,
@@ -156,63 +156,106 @@ describe("BoxCreateSubDAOUnitTests", function () {
     await executorTx.wait(1);
   });
 
-  it('should deploy a new subDAO for simple', async function () {
+  it("should deploy a new subDAO for tokenBased", async function () {
     let boxDAO = box as Box;
-    const simpleTx = await boxDAO.deploySubDAO(ethers.utils.formatBytes32String("simple"), ethers.utils.formatBytes32String("Name subDAO"), "Description of the subDAO", governanceToken.address, membershipNFT.address, VOTING_PERIOD, QUORUM_PERCENTAGE);
-    const res = await simpleTx.wait(1);
+    const tokenBasedTx = await boxDAO.deploySubDAO(
+      ethers.utils.formatBytes32String("tokenBased"),
+      ethers.utils.formatBytes32String("Name subDAO"),
+      "Description of the subDAO",
+      governanceToken.address,
+      membershipNFT.address,
+      VOTING_PERIOD,
+      QUORUM_PERCENTAGE
+    );
+    const res = await tokenBasedTx.wait(1);
 
     const count = await boxDAO.getSubDAOCount();
     expect(count).to.equal(1);
     const subDAOData = await boxDAO.getSubDAO(0);
-    expect(ethers.utils.parseBytes32String(subDAOData.name)).to.equal("Name subDAO");
-    expect(ethers.utils.parseBytes32String(subDAOData.subDAOType)).to.equal("simple");
-    expect(web3.utils.hexToAscii(subDAOData.description)).to.equal("Description of the subDAO");
+    expect(ethers.utils.parseBytes32String(subDAOData.name)).to.equal(
+      "Name subDAO"
+    );
+    expect(ethers.utils.parseBytes32String(subDAOData.subDAOType)).to.equal(
+      "tokenBased"
+    );
+    expect(web3.utils.hexToAscii(subDAOData.description)).to.equal(
+      "Description of the subDAO"
+    );
     const subDAO = new ethers.Contract(
-        subDAOData.subDAOAddress,
-        GovernanceABI.abi,
-        owner
+      subDAOData.subDAOAddress,
+      TokenBasedGovernanceABI.abi,
+      owner
     );
     expect(await subDAO.votingPeriod()).to.equal(VOTING_PERIOD);
     expect(await subDAO.getQuorumNumerator()).to.equal(QUORUM_PERCENTAGE);
   });
 
-
-  it('should deploy a new subDAO for quadratic', async function () {
+  it("should deploy a new subDAO for quadratic", async function () {
     let boxDAO = box as Box;
-    const quadraticTx = await boxDAO.deploySubDAO(ethers.utils.formatBytes32String("quadratic"), ethers.utils.formatBytes32String("Name subDAO"), "Description of the subDAO", governanceToken.address, membershipNFT.address, VOTING_PERIOD, QUORUM_PERCENTAGE);
+    const quadraticTx = await boxDAO.deploySubDAO(
+      ethers.utils.formatBytes32String("quadratic"),
+      ethers.utils.formatBytes32String("Name subDAO"),
+      "Description of the subDAO",
+      governanceToken.address,
+      membershipNFT.address,
+      VOTING_PERIOD,
+      QUORUM_PERCENTAGE
+    );
     const res = await quadraticTx.wait(1);
 
     const count = await boxDAO.getSubDAOCount();
     expect(count).to.equal(1);
     const subDAOData = await boxDAO.getSubDAO(0);
-    expect(ethers.utils.parseBytes32String(subDAOData.name)).to.equal("Name subDAO");
-    expect(ethers.utils.parseBytes32String(subDAOData.subDAOType)).to.equal("quadratic");
-    expect(web3.utils.hexToAscii(subDAOData.description)).to.equal("Description of the subDAO");
+    expect(ethers.utils.parseBytes32String(subDAOData.name)).to.equal(
+      "Name subDAO"
+    );
+    expect(ethers.utils.parseBytes32String(subDAOData.subDAOType)).to.equal(
+      "quadratic"
+    );
+    expect(web3.utils.hexToAscii(subDAOData.description)).to.equal(
+      "Description of the subDAO"
+    );
     const subDAO = new ethers.Contract(
-        subDAOData.subDAOAddress,
-        QuadraticGovernanceABI.abi,
-        owner
+      subDAOData.subDAOAddress,
+      QuadraticGovernanceABI.abi,
+      owner
     );
     expect(await subDAO.minQuadraticVoteThreshold()).to.equal(1);
     expect(await subDAO.votingPeriod()).to.equal(VOTING_PERIOD);
     expect(await subDAO.getQuorumNumerator()).to.equal(QUORUM_PERCENTAGE);
   });
 
-  it('should deploy a new subDAO for multiSig', async function () {
+  it("should deploy a new subDAO for multiSig", async function () {
     let boxDAO = box as Box;
-    const multiSigTx = await boxDAO.connect(owner).deploySubDAO(ethers.utils.formatBytes32String("multiSig"), ethers.utils.formatBytes32String("Name subDAO"), "Description of the subDAO", governanceToken.address, membershipNFT.address, VOTING_PERIOD, QUORUM_PERCENTAGE);
+    const multiSigTx = await boxDAO
+      .connect(owner)
+      .deploySubDAO(
+        ethers.utils.formatBytes32String("multiSig"),
+        ethers.utils.formatBytes32String("Name subDAO"),
+        "Description of the subDAO",
+        governanceToken.address,
+        membershipNFT.address,
+        VOTING_PERIOD,
+        QUORUM_PERCENTAGE
+      );
     const res = await multiSigTx.wait(1);
 
     const count = await boxDAO.getSubDAOCount();
     expect(count).to.equal(1);
     const subDAOData = await boxDAO.getSubDAO(0);
-    expect(ethers.utils.parseBytes32String(subDAOData.name)).to.equal("Name subDAO");
-    expect(ethers.utils.parseBytes32String(subDAOData.subDAOType)).to.equal("multiSig");
-    expect(web3.utils.hexToAscii(subDAOData.description)).to.equal("Description of the subDAO");
+    expect(ethers.utils.parseBytes32String(subDAOData.name)).to.equal(
+      "Name subDAO"
+    );
+    expect(ethers.utils.parseBytes32String(subDAOData.subDAOType)).to.equal(
+      "multiSig"
+    );
+    expect(web3.utils.hexToAscii(subDAOData.description)).to.equal(
+      "Description of the subDAO"
+    );
     const subDAO = new ethers.Contract(
-        subDAOData.subDAOAddress,
-        MultiSigGovernanceABI.abi,
-        owner
+      subDAOData.subDAOAddress,
+      MultiSigGovernanceABI.abi,
+      owner
     );
     await subDAO.connect(owner).addSigner(address1.getAddress());
     expect(await subDAO.isSigner(address1.getAddress())).to.equal(true);
@@ -348,7 +391,7 @@ describe("BoxCreateSubDAOUnitTests", function () {
 
     const subDAO = new ethers.Contract(
       subDAOData.subDAOAddress,
-      GovernanceABI.abi,
+      TokenBasedGovernanceABI.abi,
       owner
     );
     console.log(`SUB DAO Voting period: ${await subDAO.votingPeriod()}`);

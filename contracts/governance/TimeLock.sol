@@ -18,22 +18,6 @@ contract TimeLock is TimelockControllerUpgradeable {
 
     mapping(bytes32 => bool) public queuedTransactions;
 
-    event QueueTransaction(
-        bytes32 indexed txHash,
-        address indexed target,
-        uint256 value,
-        string signature,
-        bytes data,
-        uint256 eta
-    );
-    event ExecuteTransaction(
-        bytes32 indexed txHash,
-        address indexed target,
-        uint256 value,
-        string signature,
-        bytes data,
-        uint256 eta
-    );
     event NewDelay(uint256 indexed newDelay);
 
     /// @custom:oz-upgrades-unsafe-allow constructor

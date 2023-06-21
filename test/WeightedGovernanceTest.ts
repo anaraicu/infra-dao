@@ -7,7 +7,7 @@ import {
   OrganizationGovernance,
   GovernanceToken,
   TimeLock,
-  QuadraticGovernance,
+  WeightedGovernance,
 } from "../typechain-types";
 import {
   developmentChains,
@@ -30,7 +30,7 @@ import {
 const chai = require("chai");
 chai.use(solidity);
 
-describe("QuadraticGovernance", () => {
+describe("WeightedGovernance", () => {
   const initialSupply = 20;
 
   let owner: Signer;
@@ -39,12 +39,12 @@ describe("QuadraticGovernance", () => {
   let address3: Signer;
   let signers: Signer[];
 
-  let quadraticGovernance: QuadraticGovernance;
+  let weightedGovernance: WeightedGovernance;
   let membershipNFT: MembershipNFT;
   let timelock: TimeLock;
   let governanceToken: GovernanceToken;
-  let organizationGovernance: OrganizationGovernance;
   let box: any;
+  let organizationGovernance: OrganizationGovernance;
 
   let encodedFunctionCall: any;
   let targets: any[];
@@ -69,10 +69,10 @@ describe("QuadraticGovernance", () => {
     organizationGovernance = res.organizationGovernance;
     box = res.box;
 
-    const quadraticGovernanceFactory: ContractFactory =
-      await ethers.getContractFactory("QuadraticGovernance");
-    quadraticGovernance = (await upgrades.deployProxy(
-      quadraticGovernanceFactory,
+    const weightedGovernanceFactory: ContractFactory =
+      await ethers.getContractFactory("WeightedGovernance");
+    weightedGovernance = (await upgrades.deployProxy(
+      weightedGovernanceFactory,
       [
         governanceToken.address,
         membershipNFT.address,
@@ -83,11 +83,11 @@ describe("QuadraticGovernance", () => {
         organizationGovernance.address,
       ],
       { initializer: "initialize" }
-    )) as QuadraticGovernance;
-    await quadraticGovernance.deployed();
+    )) as WeightedGovernance;
+    await weightedGovernance.deployed();
 
-    await quadraticGovernance.setAdmin(owner.getAddress());
-    await quadraticGovernance.setAdmin(address1.getAddress());
+    await weightedGovernance.setAdmin(owner.getAddress());
+    await weightedGovernance.setAdmin(address1.getAddress());
     await setAdminsMembersAndVotingPower(
       membershipNFT,
       governanceToken,
@@ -108,40 +108,29 @@ describe("QuadraticGovernance", () => {
 
     const proposerRole = await timelock.PROPOSER_ROLE();
     const executorRole = await timelock.EXECUTOR_ROLE();
+    const adminRole = await timelock.DEFAULT_ADMIN_ROLE();
 
     const proposerTx = await timelock.grantRole(
       proposerRole,
-      quadraticGovernance.address
+      weightedGovernance.address
     );
     await proposerTx.wait(1);
     const executorTx = await timelock.grantRole(
       executorRole,
-      quadraticGovernance.address
+      weightedGovernance.address
     );
     await executorTx.wait(1);
     // const revokeTx = await timelock.revokeRole(adminRole, this.address);
     // await revokeTx.wait(1);
   });
 
-  it("should be able to setMinQudraticThreshold", async () => {
-    expect(await quadraticGovernance.minQuadraticVoteThreshold()).to.equal(1);
-    await quadraticGovernance.connect(owner).setMinQuadraticVoteThreshold(2);
-    expect(await quadraticGovernance.minQuadraticVoteThreshold()).to.equal(2);
-
-    expect(
-      quadraticGovernance.connect(address1).setMinQuadraticVoteThreshold(3)
-    ).to.be.revertedWith(
-      "TokenBasedGovernance::organizationOnly: not the owner or the organization"
-    );
-  });
-
   it("should allow a member to propose and members to vote on proposal", async () => {
-    await governanceToken.connect(owner).mint(await address1.getAddress(), 3);
+    await governanceToken.connect(owner).mint(await address1.getAddress(), 2);
     const { proposalId, proposalSnapshot } = await makeProposal(
       encodedFunctionCall,
       targets,
       values,
-      quadraticGovernance,
+      weightedGovernance,
       address1,
       calldatas,
       description
@@ -163,13 +152,12 @@ describe("QuadraticGovernance", () => {
     console.log(`====================================`);
     await governanceToken
       .connect(address1)
-      .approve(quadraticGovernance.address, 10);
+      .approve(weightedGovernance.address, 10);
     await governanceToken
       .connect(address2)
-      .approve(quadraticGovernance.address, 10);
+      .approve(weightedGovernance.address, 10);
 
-    // expect(await tokenBasedGovernance.connect(address1).connect(address1)["castVote(uint256,uint8,uint256)"](proposalId, 0, 2)).to.be.revertedWith("OrganizationGovernance: You need at least as many tokens as you want to vote with.");
-    const voteTx1 = await quadraticGovernance
+    const voteTx1 = await weightedGovernance
       .connect(address1)
       ["castVote(uint256,uint8,uint256,string)"](
         proposalId,
@@ -177,13 +165,13 @@ describe("QuadraticGovernance", () => {
         2,
         VOTING_REASON_EXAMPLE,
         {
-          value: ethers.utils.parseUnits("0.03", "ether"),
+          value: ethers.utils.parseUnits("0.0002", "ether"),
           gasLimit: 250000,
         }
       );
     await voteTx1.wait(1);
     expect(voteTx1)
-      .to.emit(quadraticGovernance, "VoteCast")
+      .to.emit(weightedGovernance, "VoteCast")
       .withArgs(
         await address1.getAddress(),
         proposalId,
@@ -191,48 +179,39 @@ describe("QuadraticGovernance", () => {
         2,
         VOTING_REASON_EXAMPLE
       );
-    expect(await quadraticGovernance.getBalance()).to.equal(
-      ethers.utils.parseEther("0.03")
-    );
     console.log("Address 1 voted");
 
-    const voteTx2 = await quadraticGovernance
+    const voteTx2 = await weightedGovernance
       .connect(address2)
       ["castVote(uint256,uint8)"](proposalId, 0);
     await voteTx2.wait(1);
     expect(voteTx2)
-      .to.emit(quadraticGovernance, "VoteCast")
+      .to.emit(weightedGovernance, "VoteCast")
       .withArgs(await address2.getAddress(), proposalId, 0, 1, "");
-    expect(await quadraticGovernance.getBalance()).to.equal(
-      ethers.utils.parseEther("0.03")
-    );
     console.log("Address 2 voted");
 
     expect(
-      quadraticGovernance
+      weightedGovernance
         .connect(address3)
-        ["castVote(uint256,uint8)"](proposalId, 0)
+        ["castVote(uint256,uint8,uint256,string)"](proposalId, 0, 1, "")
     ).to.be.revertedWith("TokenBasedGovernance::membersOnly: not a member");
     // VOTING POWER implementation
 
     if (developmentChains.includes(network.name)) {
       await moveBlocks(VOTING_PERIOD + 1);
     }
-    const votingResult = await quadraticGovernance.proposalVotes(proposalId);
+    const votingResult = await weightedGovernance.proposalVotes(proposalId);
     console.log(`Voting result: ${votingResult}`);
-    console.log(
-      `Quorum: ${await quadraticGovernance.quorum(proposalSnapshot)}`
-    );
-    expect(await quadraticGovernance.state(proposalId)).to.equal(4);
-    const proposalFinal = await quadraticGovernance.proposals(proposalId);
+    console.log(`Quorum: ${await weightedGovernance.quorum(proposalSnapshot)}`);
+    expect(await weightedGovernance.state(proposalId)).to.equal(4);
+    const proposalFinal = await weightedGovernance.proposals(proposalId);
     expect(await proposalFinal.votes).to.equal(3);
-    expect(await proposalFinal.budget)
-      .to.equal(await quadraticGovernance.getBalance())
-      .to.equal(ethers.utils.parseEther("0.03"));
-
+    expect(await proposalFinal.budget).to.equal(
+      ethers.utils.parseUnits("0.0002", "ether")
+    );
     console.log("Queueing...");
 
-    const queueTx = await quadraticGovernance
+    const queueTx = await weightedGovernance
       .connect(owner)
       .queue([box.address], [0], [encodedFunctionCall], descriptionHash);
     await queueTx.wait(1);
@@ -243,12 +222,15 @@ describe("QuadraticGovernance", () => {
     }
 
     console.log("Executing");
-    const executeTx = await quadraticGovernance
+    const executeTx = await weightedGovernance
       .connect(owner)
       .execute([box.address], [0], [encodedFunctionCall], descriptionHash);
     await executeTx.wait(1);
 
     const boxNewValue = await box.retrieve();
     console.log(`New Box Value: ${boxNewValue.toString()}`);
+
+    const withdrawTx = await weightedGovernance.connect(owner).closeDAO();
+    await withdrawTx.wait(1);
   });
 });

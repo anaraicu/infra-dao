@@ -1,10 +1,10 @@
 import { ethers } from "hardhat";
 import {
   Box,
-  Governance,
+  TokenBasedGovernance,
   MultiSigGovernance,
   QuadraticGovernance,
-  TokenBasedGovernance,
+  WeightedGovernance,
 } from "../typechain-types";
 import * as fs from "fs";
 import { deploymentsFile } from "../helper-config";
@@ -22,12 +22,6 @@ export async function deployGovernanceContracts() {
   await box.deployed();
   console.log("Box deployed to:", box.address);
 
-  const governanceFactory = await ethers.getContractFactory("Governance");
-  const governance = (await governanceFactory.deploy()) as Governance;
-  await governance.deployed();
-  console.log("Governance deployed to:", governance.address);
-  data.simple = governance.address;
-
   const tokenBasedGovernanceFactory = await ethers.getContractFactory(
     "TokenBasedGovernance"
   );
@@ -39,6 +33,15 @@ export async function deployGovernanceContracts() {
     tokenBasedGovernance.address
   );
   data.tokenBased = tokenBasedGovernance.address;
+
+  const weightedGovernanceFactory = await ethers.getContractFactory(
+    "WeightedGovernance"
+  );
+  const weightedGovernance =
+    (await weightedGovernanceFactory.deploy()) as WeightedGovernance;
+  await weightedGovernance.deployed();
+  console.log("WeightedGovernance deployed to:", weightedGovernance.address);
+  data.weighted = weightedGovernance.address;
 
   const quadraticGovernanceFactory = await ethers.getContractFactory(
     "QuadraticGovernance"

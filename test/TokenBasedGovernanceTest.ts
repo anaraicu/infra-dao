@@ -23,8 +23,8 @@ import { moveBlocks } from "../utils/move-blocks";
 import { moveTime } from "../utils/move-time";
 import {
   getTokenAndGovernanceContracts,
-  makeProposal,
   setAdminsMembersAndVotingPower,
+  makeProposal,
 } from "./OrganizationGovernanceTest";
 
 const chai = require("chai");
@@ -43,8 +43,8 @@ describe("TokenBasedGovernance", () => {
   let membershipNFT: MembershipNFT;
   let timelock: TimeLock;
   let governanceToken: GovernanceToken;
-  let box: any;
   let organizationGovernance: OrganizationGovernance;
+  let box: any;
 
   let encodedFunctionCall: any;
   let targets: any[];
@@ -108,7 +108,6 @@ describe("TokenBasedGovernance", () => {
 
     const proposerRole = await timelock.PROPOSER_ROLE();
     const executorRole = await timelock.EXECUTOR_ROLE();
-    const adminRole = await timelock.DEFAULT_ADMIN_ROLE();
 
     const proposerTx = await timelock.grantRole(
       proposerRole,
@@ -120,12 +119,71 @@ describe("TokenBasedGovernance", () => {
       tokenBasedGovernance.address
     );
     await executorTx.wait(1);
-    // const revokeTx = await timelock.revokeRole(adminRole, this.address);
-    // await revokeTx.wait(1);
+  });
+
+  it("should set the initial values correctly", async () => {
+    const votingPeriod = await tokenBasedGovernance.votingPeriod();
+    const quorumPercentage = await tokenBasedGovernance.getQuorumNumerator();
+    const proposalThreshold = await tokenBasedGovernance.proposalThreshold();
+    const organization = await tokenBasedGovernance.organizationAddress();
+
+    expect(votingPeriod).to.equal(VOTING_PERIOD);
+    expect(quorumPercentage).to.equal(QUORUM_PERCENTAGE);
+    expect(proposalThreshold).to.equal(PROPOSAL_THRESHOLD);
+    expect(organization).to.equal(organizationGovernance.address);
+  });
+
+  it("should set the batch admins correctly", async () => {
+    await tokenBasedGovernance
+      .connect(owner)
+      .setAdmins([owner.getAddress(), address1.getAddress()]);
+    const isAdminOwner = await tokenBasedGovernance.isAdmin(owner.getAddress());
+    const isAdminAddress1 = await tokenBasedGovernance.isAdmin(
+      address1.getAddress()
+    );
+
+    expect(isAdminOwner).to.be.true;
+    expect(isAdminAddress1).to.be.true;
+    // expect the function to throw an error
+    await expect(
+      tokenBasedGovernance.connect(address1).setAdmin(owner.getAddress())
+    ).to.be.revertedWith(
+      "TokenBasedGovernance::organizationOnly: not the owner or the organization"
+    );
+  });
+
+  it("should set/remove admin correctly", async () => {
+    const [admin] = await ethers.getSigners();
+
+    await tokenBasedGovernance.setAdmin(admin.address);
+    await tokenBasedGovernance.removeAdmin(admin.address);
+    const isAdmin = await tokenBasedGovernance.isAdmin(admin.address);
+
+    expect(isAdmin).to.be.false;
+  });
+
+  it("should add subDAO to organization DAO", async () => {
+    await organizationGovernance
+      .connect(owner)
+      .createSubDaoProject(tokenBasedGovernance.address);
+    const subDAO = await organizationGovernance.subDAO(0);
+
+    expect(subDAO).to.equal(tokenBasedGovernance.address);
+  });
+
+  it("should not allow a non-member to propose", async () => {
+    // expect the function to throw an error
+    await expect(
+      tokenBasedGovernance
+        .connect(address3)
+        .propose(targets, values, calldatas, description, {
+          gasLimit: 250000,
+        })
+    ).to.be.revertedWith("TokenBasedGovernance::membersOnly: not a member");
   });
 
   it("should allow a member to propose and members to vote on proposal", async () => {
-    await governanceToken.connect(owner).mint(await address1.getAddress(), 2);
+    await governanceToken.connect(address3).delegate(address1.getAddress());
     const { proposalId, proposalSnapshot } = await makeProposal(
       encodedFunctionCall,
       targets,
@@ -150,25 +208,15 @@ describe("TokenBasedGovernance", () => {
     console.log(`====================================`);
     console.log(`Voting on proposal ${proposalId}`);
     console.log(`====================================`);
-    await governanceToken
-      .connect(address1)
-      .approve(tokenBasedGovernance.address, 10);
-    await governanceToken
-      .connect(address2)
-      .approve(tokenBasedGovernance.address, 10);
 
+    expect(await tokenBasedGovernance.state(proposalId)).to.equal(1);
+    // expect(await governance.connect(address1).connect(address1)["castVote(uint256,uint8,uint256)"](proposalId, 0, 2)).to.be.revertedWith("OrganizationGovernance: You need at least as many tokens as you want to vote with.");
     const voteTx1 = await tokenBasedGovernance
       .connect(address1)
-      ["castVote(uint256,uint8,uint256,string)"](
-        proposalId,
-        1,
-        2,
-        VOTING_REASON_EXAMPLE,
-        {
-          value: ethers.utils.parseUnits("0.0002", "ether"),
-          gasLimit: 250000,
-        }
-      );
+      ["castVote(uint256,uint8,string)"](proposalId, 1, VOTING_REASON_EXAMPLE, {
+        value: ethers.utils.parseUnits("0.03", "ether"),
+        gasLimit: 250000,
+      });
     await voteTx1.wait(1);
     expect(voteTx1)
       .to.emit(tokenBasedGovernance, "VoteCast")
@@ -179,22 +227,19 @@ describe("TokenBasedGovernance", () => {
         2,
         VOTING_REASON_EXAMPLE
       );
-    console.log("Address 1 voted");
-
     const voteTx2 = await tokenBasedGovernance
       .connect(address2)
-      ["castVote(uint256,uint8)"](proposalId, 0);
+      ["castVote(uint256,uint8)"](proposalId, 1);
     await voteTx2.wait(1);
     expect(voteTx2)
       .to.emit(tokenBasedGovernance, "VoteCast")
-      .withArgs(await address2.getAddress(), proposalId, 0, 1, "");
-    console.log("Address 2 voted");
+      .withArgs(await address2.getAddress(), proposalId, 1, 1, "");
 
     expect(
       tokenBasedGovernance
         .connect(address3)
-        ["castVote(uint256,uint8,uint256,string)"](proposalId, 0, 1, "")
-    ).to.be.revertedWith("Governance::membersOnly: not a member");
+        ["castVote(uint256,uint8)"](proposalId, 1)
+    ).to.be.revertedWith("TokenBasedGovernance::membersOnly: not a member");
     // VOTING POWER implementation
 
     if (developmentChains.includes(network.name)) {
@@ -208,9 +253,7 @@ describe("TokenBasedGovernance", () => {
     expect(await tokenBasedGovernance.state(proposalId)).to.equal(4);
     const proposalFinal = await tokenBasedGovernance.proposals(proposalId);
     expect(await proposalFinal.votes).to.equal(3);
-    expect(await proposalFinal.budget).to.equal(
-      ethers.utils.parseUnits("0.0002", "ether")
-    );
+
     console.log("Queueing...");
 
     const queueTx = await tokenBasedGovernance
@@ -231,8 +274,41 @@ describe("TokenBasedGovernance", () => {
 
     const boxNewValue = await box.retrieve();
     console.log(`New Box Value: ${boxNewValue.toString()}`);
+    expect(await tokenBasedGovernance.allProposalsFinished()).to.be.true;
+  });
 
-    const withdrawTx = await tokenBasedGovernance.connect(owner).closeDAO();
-    await withdrawTx.wait(1);
+  it("should transfer funds to org dao on close", async () => {
+    const initialBalance = ethers.utils.parseEther("5");
+    const ownerAddress = await owner.getAddress();
+    await ethers.provider.send("hardhat_impersonateAccount", [ownerAddress]);
+    await ethers.provider.send("hardhat_setBalance", [
+      ownerAddress,
+      initialBalance.toHexString(),
+    ]);
+    expect(await ethers.provider.getBalance(ownerAddress)).to.equal(
+      initialBalance
+    );
+
+    const funds = ethers.utils.parseEther("1");
+    console.log(`Sending ${funds} to governance`);
+    await owner.sendTransaction({
+      to: tokenBasedGovernance.address,
+      value: funds.toHexString(),
+    });
+
+    expect(await ethers.provider.getBalance(ownerAddress)).to.be.closeTo(
+      initialBalance.sub(ethers.utils.parseEther("1")),
+      ethers.utils.parseEther("0.1")
+    );
+    expect(await tokenBasedGovernance.getBalance()).to.equal(
+      ethers.utils.parseEther("1")
+    );
+    expect(await organizationGovernance.getBalance()).to.equal(0);
+
+    console.log(`Closing gov dao`);
+    const closeTx = await tokenBasedGovernance.connect(owner).closeDAO();
+    await closeTx.wait(1);
+    expect(await tokenBasedGovernance.getBalance()).to.equal(0);
+    expect(await organizationGovernance.getBalance()).to.equal(funds);
   });
 });

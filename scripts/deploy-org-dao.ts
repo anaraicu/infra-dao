@@ -9,7 +9,14 @@ import {
 import { Box, DAOFactory, MembershipNFT } from "../typechain-types";
 import web3 from "web3";
 
-export async function deployOrgDao() {
+export async function deployOrgDao(
+  name: string,
+  description: string,
+  nftUri: string,
+  initialSupply: number,
+  votingPeriod: number,
+  quorumPercentage: number
+) {
   const content = fs.readFileSync(deploymentsFile, "utf8");
   const data = JSON.parse(content);
 
@@ -19,12 +26,12 @@ export async function deployOrgDao() {
   )) as DAOFactory;
 
   const tx = await daoFactory.deployDAO(
-    ethers.utils.formatBytes32String("MeshPower DAO"),
-    "MeshPower aims to offer cost-effective electricity solutions to underserved communities lacking energy access, through solar-powered nanogrids and smart metering systems.",
-    BASE_URI,
-    10,
-    VOTING_PERIOD,
-    QUORUM_PERCENTAGE
+    ethers.utils.formatBytes32String(name),
+    description,
+    nftUri,
+    initialSupply,
+    votingPeriod,
+    quorumPercentage
   );
   const receipt = await tx.wait();
   const res = receipt.events!;
@@ -65,16 +72,24 @@ export async function deployOrgDao() {
 
   const box = (await ethers.getContractAt("Box", data[count]["box"])) as Box;
   const registerTx = await box.registerSubDAOImplementations(
-    data.simple,
     data.tokenBased,
+    data.weighted,
     data.quadratic,
     data.multiSig
   );
   await registerTx.wait();
-  console.log("SubDAO implementations registered: ", registerTx);
+  console.log("SubDAO implementations registered");
 }
 
-deployOrgDao().catch((error) => {
+deployOrgDao(
+  "MeshPower DAO",
+  "MeshPower aims to offer cost-effective electricity solutions to underserved communities" +
+    " lacking energy access, through solar-powered nano-grids and smart metering systems.",
+  BASE_URI,
+  10,
+  VOTING_PERIOD,
+  QUORUM_PERCENTAGE
+).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

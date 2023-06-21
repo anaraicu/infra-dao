@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-// Quadratic Governance is extending Governance class with quadratic voting
-// and quadratic budgeting
+// WeightedGovernance is extending TokenBasedGovernance class with standard 1 token = 1 VP
 import "./TokenBasedGovernance.sol";
 
-contract QuadraticGovernance is TokenBasedGovernance {
-    uint256 _minQuadraticVoteThreshold;
-
+contract WeightedGovernance is TokenBasedGovernance {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -31,17 +28,6 @@ contract QuadraticGovernance is TokenBasedGovernance {
             _proposalThreshold,
             _organizationAddress
         );
-        _minQuadraticVoteThreshold = 1;
-    }
-
-    function minQuadraticVoteThreshold() public view returns (uint256) {
-        return _minQuadraticVoteThreshold;
-    }
-
-    function setMinQuadraticVoteThreshold(
-        uint256 amount
-    ) public organizationOnly {
-        _minQuadraticVoteThreshold = amount;
     }
 
     function castVote(
@@ -51,42 +37,37 @@ contract QuadraticGovernance is TokenBasedGovernance {
         string memory reason
     ) public payable membersOnly returns (uint256) {
         require(
-            state(proposalId) == ProposalState.Active,
-            "QuadraticGovernance: voting is closed"
-        );
-        require(
             !hasVoted(proposalId, msg.sender),
-            "OrganizationGovernance: you can vote only once in a voting period"
+            "WeightedGovernance::castVote: you can vote only once"
         );
         require(
-            amount >= _minQuadraticVoteThreshold,
-            "QuadraticGovernance: amount is too small"
+            state(proposalId) == ProposalState.Active,
+            "WeightedGovernance::castVote: voting is closed"
         );
 
         uint256 nWeight = getVotes(msg.sender, proposalSnapshot(proposalId));
-        uint256 voteWeight = amount ** 2;
+        uint256 voteWeight = amount;
         uint256 fee;
         if (amount == 1) {
-            fee = 0;
+            fee = 0; // free vote
         } else {
             fee = voteWeight * (0.0001 ether);
         }
         require(
             voteWeight <= nWeight,
-            "QuadraticGovernance: You need at least as many tokens as you want to vote with."
+            "WeightedGovernance::castVote: You need at least as many tokens as you want to vote with."
         );
         require(
-            fee <= msg.value,
-            "QuadraticGovernance: amount sent does not cover fee"
+            msg.value >= fee,
+            "WeightedGovernance::castVote: You need to pay the fee for casting more VP."
         );
-
         proposals[proposalId].votes = proposals[proposalId].votes + amount;
         proposals[proposalId].budget = proposals[proposalId].budget + msg.value;
 
         _countVote(proposalId, msg.sender, support, voteWeight, "");
         proposals[proposalId].voters.push(msg.sender);
-        proposals[proposalId].votesByMember[msg.sender] = amount;
-        emit VoteCast(msg.sender, proposalId, support, amount, reason);
+        proposals[proposalId].votesByMember[msg.sender] = voteWeight;
+        emit VoteCast(msg.sender, proposalId, support, voteWeight, reason);
         return voteWeight;
     }
 

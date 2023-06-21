@@ -2,10 +2,10 @@
 pragma solidity ^0.8.0;
 
 // MultiSigGovernance is extending Governance class with MultiSignature voting
-import "./Governance.sol";
+import "./TokenBasedGovernance.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-contract MultiSigGovernance is Governance {
+contract MultiSigGovernance is TokenBasedGovernance {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     uint256 public requiredSignatures;
@@ -33,7 +33,7 @@ contract MultiSigGovernance is Governance {
         uint256 _proposalThreshold,
         address _organizationAddress
     ) public override {
-        Governance.initialize(
+        TokenBasedGovernance.initialize(
             _token,
             membershipToken,
             _timelock,

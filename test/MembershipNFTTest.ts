@@ -39,6 +39,7 @@ describe("MembershipNFTUnitTests", function () {
     expect(await membershipNFT.getURI()).to.equal(
       "https://bafybeihul6zsmbzyrgmjth3ynkmchepyvyhcwecn2yxc57ppqgpvr35zsq.ipfs.dweb.link/0.json"
     );
+    expect(await membershipNFT.totalSupply()).to.equal(initialSupply);
   });
 
   it("should allow owner to set the token URI", async function () {
@@ -67,7 +68,7 @@ describe("MembershipNFTUnitTests", function () {
       .connect(owner)
       .mint(account, id, amount, toUtf8Bytes(""));
     expect(await membershipNFT.balanceOf(account, id)).to.equal(amount);
-    await membershipNFT.connect(owner).burn(account, id, amount);
+    await membershipNFT.connect(address1).burn(account, id, amount);
     expect(await membershipNFT.balanceOf(account, id)).to.equal(0);
   });
 
